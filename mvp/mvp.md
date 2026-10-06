@@ -19,11 +19,12 @@ Portal agregador de vagas de tecnologia no estilo Indeed, focado em quem tem pou
 
 ### Vagas
 
-1. **Fonte principal:** repositórios de vagas no GitHub (ex.: `backend-br/vagas`, `frontendbr/vagas`), importados pela API pública do GitHub. As labels das issues já trazem nível, tipo de contratação, modalidade e stack.
-2. **Modelo híbrido:** uma única tabela de vagas com campo de origem (`github` ou `interna`) e link de candidatura. Empresas entram no futuro sem retrabalho.
-3. **Skills da vaga:** identificadas pelas labels do GitHub e pela busca, no texto da descrição, das skills cadastradas no sistema.
-4. **Candidatura por link externo:** o usuário é redirecionado para a página da vaga.
-5. **Busca e filtros:** por texto, nível, modalidade e stack.
+1. **Fontes:** repositórios de vagas da comunidade no GitHub, importados pela API REST do GitHub (endpoint de Issues). A base inicial é `frontendbr/vagas` e `backend-br/vagas`, ampliada com os repositórios por stack e região listados no README do frontendbr (React/React Native, Node.js, Python, QA, .NET, Go, entre outros). Somar fontes compensa o baixo volume de vagas júnior em cada repositório. As labels das issues já trazem nível, tipo de contratação, modalidade e stack.
+2. **Tabela de mapeamento de labels:** cada repositório nomeia as labels do seu jeito ("Júnior", "Junior", "Jr"). Uma tabela de mapeamento por fonte traduz essas labels para os valores padronizados do modelo (nível, tipo de contratação, modalidade e stack).
+3. **Modelo híbrido:** uma única tabela de vagas com campo de origem (`github` ou `interna`) e link de candidatura. Empresas entram no futuro sem retrabalho.
+4. **Skills da vaga:** identificadas pelas labels do GitHub e pela busca, no texto da descrição, das skills cadastradas no sistema.
+5. **Candidatura por link externo:** o usuário é redirecionado para a página da vaga.
+6. **Busca e filtros:** por texto, nível, modalidade e stack.
 
 ### Currículo
 
