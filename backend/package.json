@@ -1,0 +1,30 @@
+{
+  "name": "sistema_de_login",
+  "version": "1.0.0",
+  "description": "Sistema de Login para integração com Front-end",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon login_backend/src/app.js",
+    "start": "node login_backend/src/app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^2.11.0",
+    "@tsconfig/node18": "^18.2.6",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "nodemon": "^3.1.14",
+    "pg": "^8.20.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.8",
+    "zod": "^4.4.3"
+  }
+}
