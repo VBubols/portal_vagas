@@ -1,19 +1,17 @@
 {
-  "name": "sistema_de_login",
+  "name": "portal_vagas",
   "version": "1.0.0",
-  "description": "Sistema de Login para integração com Front-end",
+  "description": "Sistema de portal de vagas",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon login_backend/src/app.js",
-    "start": "node login_backend/src/app.js"
+    "dev": "nodemon backend/src/app.js",
+    "start": "node backend/src/app.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google/genai": "^2.11.0",
-    "@tsconfig/node18": "^18.2.6",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
