@@ -1,13 +1,27 @@
 import { z } from 'zod';
+import {
+    emailSchema, senhaSchema, nomeSchema, sobrenomeSchema, anulavel,
+    cpfSchema, celularSchema, telefoneFixoSchema, dataNascimentoSchema, paisOrigemSchema,
+} from './common.schema.js';
 
-export const atualizarPerfilSchema = z.object({
-    nome: z.string().min(2).optional(),
-    email: z.string().email('E-mail inválido').optional()
-}).refine(data => data.nome || data.email, {
-    message: 'Informe ao menos nome ou email para atualizar'
-});
+// Tudo é opcional no envio (atualização parcial), mas quem for enviado precisa ser válido:
+// "" em campo obrigatório dá erro, só o telefone fixo pode ser apagado.
+export const atualizarPerfilSchema = z
+    .object({
+        nome: nomeSchema.optional(),
+        sobrenome: sobrenomeSchema.optional(),
+        email: emailSchema.optional(),
+        cpf: cpfSchema.optional(),
+        telefoneCelular: celularSchema.optional(),
+        telefoneFixo: anulavel(telefoneFixoSchema),
+        dataNascimento: dataNascimentoSchema.optional(),
+        paisOrigem: paisOrigemSchema.optional(),
+    })
+    .refine((dados) => Object.values(dados).some((v) => v !== undefined), {
+        message: 'Informe ao menos um campo para atualizar',
+    });
 
-export const autalizarSenhaSchema = z.object({
-    senhaAntiga: z.string().min(1, 'Senha antiga é obrigatória'),
-    novaSenha: z.string().min(6, 'Nova senha deve ter pelo menos 6 caracteres')
+export const atualizarSenhaSchema = z.object({
+    senhaAntiga: z.string({ error: 'Campo obrigatório' }).min(1, 'Senha antiga é obrigatória'),
+    novaSenha: senhaSchema,
 });
