@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon backend/src/app.js",
-    "start": "node backend/src/app.js"
+    "start": "node backend/src/app.js",
+    "seed:skills": "node src/seeds/skills.seed.js"
   },
   "keywords": [],
   "author": "",
