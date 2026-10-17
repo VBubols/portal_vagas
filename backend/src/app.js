@@ -5,9 +5,11 @@ import sequelize from './config/database.js';
 
 // Importa todos os models pra que o sequelize.sync() conheça as tabelas.
 import './models/usuario.model.js';
+import './models/skill.model.js';
 
 import authRouter from './routes/auth.routes.js';
 import userRouter from './routes/usuario.routes.js';
+import skillRouter from './routes/skill.routes.js';
 import { corsConfig } from './config/cors.js';
 import { helmetConfig } from './config/helmet.js';
 import { limitadorGlobal } from './config/rateLimit.js';
@@ -20,6 +22,7 @@ app.use(limitadorGlobal);
 
 app.use('/auth', authRouter);
 app.use('/usuario', userRouter);
+app.use('/skills', skillRouter);
 
 // sequelize.sync({ alter: true }).then(() => {
 //   app.listen(process.env.PORT, () => {
