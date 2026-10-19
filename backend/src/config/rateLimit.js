@@ -1,31 +1,28 @@
 import rateLimit from 'express-rate-limit';
 
+const janela = 15 * 60 * 1000;
+
 export const limitadorGlobal = rateLimit({
-    windowMs: 15*60*1000, //Janela de tempo para fazer algo
-    max: 100, //Número máximo de req por IP
-    message: {
-        erro: 'Muitas requisições por minuto!'
-    },
-    standardHeaders: true, //Envia RateLimit-* nos headers
-    legacyHeaders: false //desativa o X-RateLimit-* antigo
+    windowMs: janela,
+    limit: 100,
+    message: { mensagem: 'Muitas requisições, tente novamente em alguns minutos' },
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 
 export const limitadorUsuario = rateLimit({
-    windowMs: 15*60*1000,
-    max: 10,
-    message: {
-        erro: 'Muitas requisições por minuto!'
-    },
+    windowMs: janela,
+    limit: 10,
+    message: { mensagem: 'Muitas requisições, tente novamente em alguns minutos' },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
 });
 
 export const limitadorLogin = rateLimit({
-    windowMs: 15*60*1000,
-    max: 3,
-    message: {
-        erro: 'Limite de 3 requisições excedido!'
-    },
+    windowMs: janela,
+    limit: 3,
+    skipSuccessfulRequests: true, // só tentativas que falham contam
+    message: { mensagem: 'Muitas tentativas de login, tente novamente em alguns minutos' },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
 });
