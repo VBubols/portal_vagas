@@ -1,4 +1,4 @@
-import { UFS, LOCALIZACAO_INTERNACIONAL } from '../constants/enums.js';
+import { NOMES_UF, LOCALIZACAO_INTERNACIONAL } from '../constants/enums.js';
 
 // Traduz as labels de cada repositório para os valores de src/constants/enums.js.
 // Regras, aplicadas label por label em src/services/mapeamentoLabels.service.js:
@@ -16,7 +16,7 @@ const localizacao = (valor) => ({ campo: 'localizacoes', valor });
 
 // Uma label por estado, com o mesmo nome da UF: 'Santa Catarina' -> 'SC'.
 const labelsDeEstado = Object.fromEntries(
-  Object.entries(UFS).map(([uf, nome]) => [nome, localizacao(uf)]),
+  Object.entries(NOMES_UF).map(([uf, nome]) => [nome, localizacao(uf)]),
 );
 
 export const mapeamentoLabels = {

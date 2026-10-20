@@ -1,17 +1,22 @@
 // Valores padronizados compartilhados por vagas, CV, mapeamento de labels e match.
 // No banco vai sempre o valor ('junior'); o rótulo ('Júnior') é só para exibição.
 // Uso: z.enum(NIVEIS) nos schemas Zod e DataTypes.ENUM(...NIVEIS) nos models.
+// Qualquer mudança aqui afeta CV, vagas, mapeamento e match ao mesmo tempo.
+
+// Vaga e CV
 
 // Em ordem crescente de experiência, então o match pode comparar pelo índice.
 export const NIVEIS = ['estagio', 'junior', 'pleno', 'senior', 'especialista'];
 
 export const MODALIDADES = ['remoto', 'hibrido', 'presencial'];
 
-export const CONTRATACOES = ['clt', 'pj', 'freelance', 'outro'];
+export const CONTRATACOES = ['clt', 'pj', 'estagio', 'freelance', 'temporario', 'outro'];
 
 export const ORIGENS_VAGA = ['github', 'interna'];
 
-export const UFS = {
+// Localização
+
+export const NOMES_UF = {
   AC: 'Acre',
   AL: 'Alagoas',
   AP: 'Amapá',
@@ -41,9 +46,22 @@ export const UFS = {
   TO: 'Tocantins',
 };
 
+// Lista de siglas, para DataTypes.ENUM(...UFS) e z.enum(UFS).
+export const UFS = Object.keys(NOMES_UF);
+
 export const LOCALIZACAO_INTERNACIONAL = 'internacional';
 
-export const LOCALIZACOES = [...Object.keys(UFS), LOCALIZACAO_INTERNACIONAL];
+// UFs + exterior, usado pelo mapeamento de labels das vagas.
+export const LOCALIZACOES = [...UFS, LOCALIZACAO_INTERNACIONAL];
+
+// Currículo
+
+export const GRAUS = ['tecnico', 'tecnologo', 'graduacao', 'pos_graduacao', 'mestrado', 'doutorado'];
+export const SITUACOES_FORMACAO = ['concluido', 'cursando', 'trancado'];
+export const NIVEIS_IDIOMA = ['basico', 'intermediario', 'avancado', 'fluente', 'nativo'];
+export const TIPOS_LINK = ['github', 'linkedin', 'portfolio', 'outro'];
+
+// Rótulos para exibição
 
 export const ROTULOS = {
   niveis: {
@@ -54,6 +72,13 @@ export const ROTULOS = {
     especialista: 'Especialista',
   },
   modalidades: { remoto: 'Remoto', hibrido: 'Híbrido', presencial: 'Presencial' },
-  contratacoes: { clt: 'CLT', pj: 'PJ', freelance: 'Freelance', outro: 'Outro' },
-  localizacoes: { ...UFS, [LOCALIZACAO_INTERNACIONAL]: 'Exterior' },
+  contratacoes: {
+    clt: 'CLT',
+    pj: 'PJ',
+    estagio: 'Estágio',
+    freelance: 'Freelance',
+    temporario: 'Temporário',
+    outro: 'Outro',
+  },
+  localizacoes: { ...NOMES_UF, [LOCALIZACAO_INTERNACIONAL]: 'Exterior' },
 };
