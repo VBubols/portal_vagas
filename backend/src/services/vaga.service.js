@@ -64,10 +64,10 @@ function montarWhere({ q, nivel, modalidade, stack } = {}) {
 export async function carregarCurriculoParaMatch(usuarioId) {
   const curriculo = await Curriculo.findOne({
     where: { usuarioId },
-    attributes: ['id', 'nivel', 'modalidades', 'cidade', 'uf', 'cidadeNormalizada'],
+    attributes: ['id', 'nivel', 'modalidades', 'cidade', 'uf'],
     include: [
       INCLUDE_SKILLS,
-      { model: CurriculoLocal, as: 'locais', attributes: ['cidade', 'uf', 'cidadeNormalizada'] },
+      { model: CurriculoLocal, as: 'locais', attributes: ['cidade', 'uf'] },
     ],
   });
   return curriculo ? plano(curriculo) : null;

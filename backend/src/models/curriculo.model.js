@@ -1,28 +1,40 @@
-// PROVISÓRIO (pessoa 2): currículo e tabelas filhas, conforme o diagrama.
 import sequelize from '../config/database.js';
 import { DataTypes } from 'sequelize';
 import {
-  NIVEIS, MODALIDADES, UFS, GRAUS, SITUACOES_FORMACAO, NIVEIS_IDIOMA, TIPOS_LINK,
+  NIVEIS, MODALIDADES, LOCALIZACOES, GRAUS, SITUACOES_FORMACAO, NIVEIS_IDIOMA, TIPOS_LINK,
 } from '../constants/enums.js';
 
-const id = () => ({ type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true });
-const opcoes = (tableName) => ({ tableName, underscored: true, timestamps: false });
+// Currículo 1:1 com o usuário. As listas (experiência, formação etc.) são tabelas filhas.
+// As associações (cascata, skills N:N) ficam em models/index.js, para evitar import circular.
+
+const id = { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true };
 
 export const Curriculo = sequelize.define(
   'Curriculo',
   {
-    id: id(),
+    id,
     usuarioId: { type: DataTypes.UUID, allowNull: false, unique: true },
-    nomeCompleto: { type: DataTypes.STRING, allowNull: false },
-    titulo: { type: DataTypes.STRING, allowNull: false },
-    emailContato: { type: DataTypes.STRING, allowNull: false },
-    telefone: { type: DataTypes.STRING, allowNull: false },
-    resumo: { type: DataTypes.TEXT, allowNull: false },
+    nomeCompleto: { type: DataTypes.STRING(100), allowNull: false },
+    titulo: { type: DataTypes.STRING(80), allowNull: false },
+    resumo: { type: DataTypes.STRING(600), allowNull: true },
+    emailContato: { type: DataTypes.STRING(254), allowNull: false },
+    telefone: { type: DataTypes.STRING(11), allowNull: false }, // só dígitos (DDD + número)
+    // Usados pelo match
     nivel: { type: DataTypes.ENUM(...NIVEIS), allowNull: false },
-    modalidades: { type: DataTypes.ARRAY(DataTypes.ENUM(...MODALIDADES)), allowNull: false },
-    cidade: { type: DataTypes.STRING, allowNull: false },
-    uf: { type: DataTypes.ENUM(...UFS), allowNull: false },
-    cidadeNormalizada: { type: DataTypes.STRING, allowNull: false },
+    modalidades: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      allowNull: false,
+      defaultValue: [],
+      validate: {
+        valores(v) {
+          if (!v.length || !v.every((m) => MODALIDADES.includes(m))) {
+            throw new Error('Modalidades inválidas');
+          }
+        },
+      },
+    },
+    cidade: { type: DataTypes.STRING(100), allowNull: false },
+    uf: { type: DataTypes.STRING(13), allowNull: false, validate: { isIn: [LOCALIZACOES] } },
   },
   { tableName: 'curriculo', underscored: true, timestamps: true },
 );
@@ -30,96 +42,92 @@ export const Curriculo = sequelize.define(
 export const CurriculoLocal = sequelize.define(
   'CurriculoLocal',
   {
-    id: id(),
+    id,
     curriculoId: { type: DataTypes.UUID, allowNull: false },
-    cidade: { type: DataTypes.STRING, allowNull: false },
-    uf: { type: DataTypes.ENUM(...UFS), allowNull: false },
-    cidadeNormalizada: { type: DataTypes.STRING, allowNull: false },
+    cidade: { type: DataTypes.STRING(100), allowNull: true },
+    uf: { type: DataTypes.STRING(13), allowNull: false, validate: { isIn: [LOCALIZACOES] } },
   },
-  {
-    ...opcoes('curriculo_local'),
-    indexes: [{ unique: true, fields: ['curriculo_id', 'cidade_normalizada', 'uf'] }],
-  },
+  { tableName: 'curriculo_local', underscored: true, timestamps: false },
 );
 
 export const Experiencia = sequelize.define(
   'Experiencia',
   {
-    id: id(),
+    id,
     curriculoId: { type: DataTypes.UUID, allowNull: false },
-    empresa: { type: DataTypes.STRING, allowNull: false },
-    cargo: { type: DataTypes.STRING, allowNull: false },
-    cidade: DataTypes.STRING,
-    uf: DataTypes.ENUM(...UFS),
+    empresa: { type: DataTypes.STRING(100), allowNull: false },
+    cargo: { type: DataTypes.STRING(100), allowNull: false },
+    cidade: { type: DataTypes.STRING(100), allowNull: true }, // só informativo, fora do match
+    uf: { type: DataTypes.STRING(13), allowNull: true, validate: { isIn: [LOCALIZACOES] } },
     inicio: { type: DataTypes.DATEONLY, allowNull: false },
-    fim: DataTypes.DATEONLY,
+    fim: { type: DataTypes.DATEONLY, allowNull: true }, // nulo quando atual = true
     atual: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-    descricao: DataTypes.TEXT,
+    descricao: { type: DataTypes.STRING(500), allowNull: true },
   },
-  opcoes('experiencia'),
+  { tableName: 'experiencia', underscored: true, timestamps: false },
 );
 
 export const Formacao = sequelize.define(
   'Formacao',
   {
-    id: id(),
+    id,
     curriculoId: { type: DataTypes.UUID, allowNull: false },
-    instituicao: { type: DataTypes.STRING, allowNull: false },
-    curso: { type: DataTypes.STRING, allowNull: false },
-    grau: { type: DataTypes.ENUM(...GRAUS), allowNull: false },
+    instituicao: { type: DataTypes.STRING(100), allowNull: false },
+    curso: { type: DataTypes.STRING(100), allowNull: false },
+    grau: { type: DataTypes.ENUM(...GRAUS), allowNull: true },
     situacao: { type: DataTypes.ENUM(...SITUACOES_FORMACAO), allowNull: false },
-    inicio: DataTypes.DATEONLY,
-    fim: DataTypes.DATEONLY,
+    inicio: { type: DataTypes.DATEONLY, allowNull: true },
+    fim: { type: DataTypes.DATEONLY, allowNull: true }, // conclusão ou previsão
   },
-  opcoes('formacao'),
+  { tableName: 'formacao', underscored: true, timestamps: false },
 );
 
 export const Curso = sequelize.define(
   'Curso',
   {
-    id: id(),
+    id,
     curriculoId: { type: DataTypes.UUID, allowNull: false },
-    nome: { type: DataTypes.STRING, allowNull: false },
-    instituicao: DataTypes.STRING,
-    cargaHoraria: DataTypes.INTEGER,
-    conclusao: DataTypes.DATEONLY,
+    nome: { type: DataTypes.STRING(100), allowNull: false },
+    instituicao: { type: DataTypes.STRING(100), allowNull: true },
+    cargaHoraria: { type: DataTypes.INTEGER, allowNull: true },
+    conclusao: { type: DataTypes.DATEONLY, allowNull: true },
   },
-  opcoes('curso'),
+  { tableName: 'curso', underscored: true, timestamps: false },
 );
 
 export const Idioma = sequelize.define(
   'Idioma',
   {
-    id: id(),
+    id,
     curriculoId: { type: DataTypes.UUID, allowNull: false },
-    idioma: { type: DataTypes.STRING, allowNull: false },
+    idioma: { type: DataTypes.STRING(50), allowNull: false },
     nivel: { type: DataTypes.ENUM(...NIVEIS_IDIOMA), allowNull: false },
   },
-  opcoes('idioma'),
+  { tableName: 'idioma', underscored: true, timestamps: false },
 );
 
 export const Link = sequelize.define(
   'Link',
   {
-    id: id(),
+    id,
     curriculoId: { type: DataTypes.UUID, allowNull: false },
     tipo: { type: DataTypes.ENUM(...TIPOS_LINK), allowNull: false },
-    url: { type: DataTypes.STRING, allowNull: false },
+    url: { type: DataTypes.STRING(200), allowNull: false },
   },
-  opcoes('link'),
+  { tableName: 'link', underscored: true, timestamps: false },
 );
 
 export const Projeto = sequelize.define(
   'Projeto',
   {
-    id: id(),
+    id,
     curriculoId: { type: DataTypes.UUID, allowNull: false },
-    nome: { type: DataTypes.STRING, allowNull: false },
-    descricao: DataTypes.TEXT,
-    url: DataTypes.STRING,
-    tecnologias: DataTypes.ARRAY(DataTypes.STRING),
+    nome: { type: DataTypes.STRING(80), allowNull: false },
+    descricao: { type: DataTypes.STRING(400), allowNull: true },
+    url: { type: DataTypes.STRING(200), allowNull: true },
+    tecnologias: { type: DataTypes.ARRAY(DataTypes.STRING), allowNull: false, defaultValue: [] }, // só exibição
   },
-  opcoes('projeto'),
+  { tableName: 'projeto', underscored: true, timestamps: false },
 );
 
 export const CurriculoSkill = sequelize.define(
@@ -128,7 +136,7 @@ export const CurriculoSkill = sequelize.define(
     curriculoId: { type: DataTypes.UUID, primaryKey: true },
     skillId: { type: DataTypes.UUID, primaryKey: true },
   },
-  opcoes('curriculo_skill'),
+  { tableName: 'curriculo_skill', underscored: true, timestamps: false },
 );
 
 export default Curriculo;
