@@ -186,9 +186,57 @@ A busca por texto exige que cada palavra apareça no título, na empresa, na des
 
 ### Currículo (requer autenticação)
 
-| Método | Rota             | Descrição                                          |
-| ------ | ---------------- | -------------------------------------------------- |
-| `GET`  | `/curriculo/pdf` | Exporta o currículo do usuário em PDF compatível com ATS |
+O currículo é sempre o do usuário do token: não há `:id` na URL. Cada usuário tem no máximo um.
+
+| Método | Rota             | Descrição                                                               |
+| ------ | ---------------- | ----------------------------------------------------------------------- |
+| `GET`  | `/curriculo`     | Retorna o currículo completo (404 se ainda não existe)                  |
+| `POST` | `/curriculo`     | Cria o currículo completo (409 se já existe)                            |
+| `PUT`  | `/curriculo`     | Substitui o currículo inteiro: o que não for enviado é removido         |
+| `GET`  | `/curriculo/pdf` | Exporta o currículo do usuário em PDF compatível com ATS                |
+
+O `POST` e o `PUT` gravam tudo em uma transação: ou o currículo inteiro é salvo, ou nada é.
+
+**Campos obrigatórios:** `nomeCompleto`, `titulo`, `emailContato`, `telefone`, `nivel`, `modalidades` (ao menos uma), `cidade`, `uf` e `skillIds` (ao menos uma). Os demais são opcionais, incluindo `projetos`.
+
+```json
+{
+  "nomeCompleto": "Maria da Conceição",
+  "titulo": "Desenvolvedora Back-end Júnior",
+  "resumo": "Desenvolvedora em início de carreira, com foco em Node.js.",
+  "emailContato": "maria@exemplo.com",
+  "telefone": "(48) 99999-0000",
+  "nivel": "junior",
+  "modalidades": ["remoto", "hibrido"],
+  "cidade": "Palhoça",
+  "uf": "SC",
+  "locais": [{ "cidade": "Curitiba", "uf": "PR" }],
+  "experiencias": [
+    { "empresa": "Acme", "cargo": "Estagiária", "inicio": "2024-03", "atual": true }
+  ],
+  "formacoes": [
+    { "instituicao": "UFSC", "curso": "Sistemas de Informação", "grau": "graduacao", "situacao": "cursando", "inicio": "2023-02", "fim": "2026-12" }
+  ],
+  "cursos": [{ "nome": "Node.js", "instituicao": "Alura", "cargaHoraria": 40, "conclusao": "2024-06" }],
+  "idiomas": [{ "idioma": "Inglês", "nivel": "intermediario" }],
+  "links": [{ "tipo": "github", "url": "https://github.com/maria" }],
+  "projetos": [{ "nome": "Portal de Vagas", "url": "https://github.com/maria/portal", "tecnologias": ["Node.js"] }],
+  "skillIds": ["<id obtido em GET /skills>"]
+}
+```
+
+**Regras de validação**
+
+- `uf` e `locais[].uf` aceitam as 27 UFs e `internacional`. O match compara por UF.
+- `locais` são os lugares onde a pessoa aceita trabalhar, além de onde mora.
+- Datas: `AAAA-MM` ou `AAAA-MM-DD`. O PDF mostra `MM/AAAA`.
+- Experiência: `atual: true` exige `fim` vazio, e `atual: false` exige `fim`. Cidade e UF da experiência são só informativas.
+- Telefone com DDD e 8 ou 9 dígitos, guardado só com números.
+- URLs precisam ser `https`.
+- Limites por lista: experiências 10, formações 6, cursos 15, idiomas 6, links 6, locais 5, projetos 6 e skills 30.
+- Skills só podem ser as cadastradas (`GET /skills`).
+
+A resposta inclui `completude: { match, pdf }`, que indica se o currículo já tem o necessário para o match e para o PDF.
 
 ### Como funciona o match
 
