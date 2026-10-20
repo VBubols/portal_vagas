@@ -57,7 +57,7 @@ export const LOCALIZACOES = [...UFS, LOCALIZACAO_INTERNACIONAL];
 // Currículo
 
 export const GRAUS = ['tecnico', 'tecnologo', 'graduacao', 'pos_graduacao', 'mestrado', 'doutorado'];
-export const SITUACOES_FORMACAO = ['concluido', 'cursando', 'trancado'];
+export const SITUACOES_FORMACAO = ['concluido', 'cursando', 'incompleto'];
 export const NIVEIS_IDIOMA = ['basico', 'intermediario', 'avancado', 'fluente', 'nativo'];
 export const TIPOS_LINK = ['github', 'linkedin', 'portfolio', 'outro'];
 

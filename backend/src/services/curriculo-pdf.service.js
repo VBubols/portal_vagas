@@ -26,7 +26,7 @@ const ROTULOS_GRAU = {
   mestrado: 'Mestrado',
   doutorado: 'Doutorado',
 };
-const ROTULOS_SITUACAO = { concluido: 'Concluído', cursando: 'Cursando', trancado: 'Trancado' };
+const ROTULOS_SITUACAO = { concluido: 'Concluído', cursando: 'Cursando', incompleto: 'Incompleto' };
 const ROTULOS_IDIOMA = {
   basico: 'Básico',
   intermediario: 'Intermediário',
