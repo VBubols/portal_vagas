@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { curriculoSchema } from '../src/schemas/curriculo.schema.js';
-import { serializarCurriculo } from '../src/utils/serializarCurriculo.js';
+import { serializarCurriculo, calcularCompletude } from '../src/utils/serializarCurriculo.js';
+import { LIMITES_CURRICULO as L } from '../src/constants/curriculo.limites.js';
 
 const ID_SKILL = '3f2b8c1e-5d4a-4e7b-9a6c-1b2c3d4e5f60';
 
@@ -156,4 +157,39 @@ test('serializarCurriculo: esconde campos internos e ordena as listas', () => {
   assert.deepEqual(cv.idiomas.map((i) => i.idioma), ['Espanhol', 'Inglês']);
   assert.deepEqual(cv.links.map((l) => l.tipo), ['github', 'portfolio']);
   assert.deepEqual(cv.skills.map((s) => s.nome), ['Angular', 'React']);
+});
+
+test('datas aceitam AAAA-MM (viram dia 01) e AAAA-MM-DD', () => {
+  const r = curriculoSchema.parse(valido({
+    experiencias: [{ empresa: 'A', cargo: 'B', inicio: '2024-03', fim: '2024-09-15' }],
+    formacoes: [{ instituicao: 'U', curso: 'C', grau: 'graduacao', situacao: 'cursando', inicio: '2023-02', fim: '2026-12' }],
+  }));
+  assert.equal(r.experiencias[0].inicio, '2024-03-01');
+  assert.equal(r.experiencias[0].fim, '2024-09-15');
+  assert.equal(r.formacoes[0].fim, '2026-12-01');
+  assert.deepEqual(camposComErro(valido({ formacoes: [{ instituicao: 'U', curso: 'C', grau: 'graduacao', situacao: 'cursando', inicio: '2023-13' }] })), ['formacoes.0.inicio']);
+});
+
+test('fim em AAAA-MM também não pode ser anterior ao início', () => {
+  const exp = { empresa: 'A', cargo: 'B', inicio: '2024-05', fim: '2024-04' };
+  assert.deepEqual(camposComErro(valido({ experiencias: [exp] })), ['experiencias.0.fim']);
+});
+
+test('limites combinados com o grupo (constants/curriculo.limites.js)', () => {
+  const links = Array.from({ length: L.links + 1 }, (_, i) => ({ tipo: 'outro', url: `https://exemplo.com/${i}` }));
+  assert.deepEqual(camposComErro(valido({ links })), ['links']);
+  assert.deepEqual(camposComErro(valido({ resumo: 'a'.repeat(L.resumo + 1) })), ['resumo']);
+  assert.deepEqual(camposComErro(valido({ titulo: 'a'.repeat(L.titulo + 1) })), ['titulo']);
+  assert.equal(curriculoSchema.safeParse(valido({ resumo: 'a'.repeat(L.resumo) })).success, true);
+});
+
+test('completude: match exige ao menos uma skill; pdf exige também ao menos uma formação', () => {
+  const base = {
+    nomeCompleto: 'Maria Silva', titulo: 't', resumo: 'r', emailContato: 'e', telefone: 't',
+    nivel: 'junior', modalidades: ['remoto'], cidade: 'Palhoça', uf: 'SC', skills: [], formacoes: [],
+  };
+  assert.deepEqual(calcularCompletude(base), { match: false, pdf: false });
+  assert.deepEqual(calcularCompletude({ ...base, skills: [{ id: 's' }] }), { match: true, pdf: false });
+  assert.deepEqual(calcularCompletude({ ...base, skills: [{ id: 's' }], formacoes: [{}] }), { match: true, pdf: true });
+  assert.deepEqual(calcularCompletude({ ...base, skills: [{ id: 's' }], modalidades: [] }), { match: false, pdf: false });
 });

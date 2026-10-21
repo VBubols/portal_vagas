@@ -6,6 +6,7 @@ import {
   emailSchema, anulavel, erroCampo, normalizarTelefone,
 } from './common.schema.js';
 import { normalizarTexto } from '../utils/texto.js';
+import { LIMITES_CURRICULO as L } from '../constants/curriculo.limites.js';
 
 // Regra geral: é obrigatório o que o model marca com allowNull: false.
 // Campos desconhecidos (id, usuarioId, cidadeNormalizada...) são descartados pelo
@@ -33,7 +34,11 @@ const ufSchema = z
   .toUpperCase()
   .pipe(opcao(UFS));
 
-const data = z.iso.date({ error: erroCampo('Data inválida (use AAAA-MM-DD)') });
+// Aceita AAAA-MM (campo de mês do formulário) ou AAAA-MM-DD; guarda sempre AAAA-MM-DD (dia 01 no primeiro caso).
+const data = z.preprocess(
+  (v) => (typeof v === 'string' && /^\d{4}-\d{2}$/.test(v.trim()) ? `${v.trim()}-01` : v),
+  z.iso.date({ error: erroCampo('Data inválida (use AAAA-MM ou AAAA-MM-DD)') }),
+);
 
 // Só http(s): evita "javascript:" e afins em links que o front vai renderizar.
 const urlSchema = z
@@ -41,7 +46,7 @@ const urlSchema = z
     protocol: /^https?$/,
     error: erroCampo('URL inválida (use http:// ou https://)'),
   })
-  .max(255, 'Deve ter no máximo 255 caracteres');
+  .max(L.url, `Deve ter no máximo ${L.url} caracteres`);
 
 const lista = (item, max, rotulo) => z
   .array(item, { error: erroCampo('Lista inválida') })
@@ -76,20 +81,20 @@ const MSG_PERIODO = { message: 'A data de término não pode ser anterior à de 
 // ---------------------------------------------------------------------------
 
 const localSchema = z.object({
-  cidade: texto(100),
+  cidade: texto(L.textoCurto),
   uf: ufSchema,
 });
 
 const experienciaSchema = z
   .object({
-    empresa: texto(150),
-    cargo: texto(150),
-    cidade: anulavel(texto(100)),
+    empresa: texto(L.textoCurto),
+    cargo: texto(L.textoCurto),
+    cidade: anulavel(texto(L.textoCurto)),
     uf: anulavel(ufSchema),
     inicio: data,
     fim: anulavel(data),
     atual: z.boolean({ error: 'Deve ser verdadeiro ou falso' }).default(false),
-    descricao: anulavel(texto(3000)),
+    descricao: anulavel(texto(L.descricaoExperiencia)),
   })
   // Experiência atual não tem término: se o front mandar um "fim" junto, ele é descartado.
   .transform((e) => (e.atual ? { ...e, fim: null } : e))
@@ -101,8 +106,8 @@ const experienciaSchema = z
 
 const formacaoSchema = z
   .object({
-    instituicao: texto(150),
-    curso: texto(150),
+    instituicao: texto(L.textoCurto),
+    curso: texto(L.textoCurto),
     grau: opcao(GRAUS),
     situacao: opcao(SITUACOES_FORMACAO),
     inicio: anulavel(data),
@@ -111,8 +116,8 @@ const formacaoSchema = z
   .refine(fimDepoisDoInicio, MSG_PERIODO);
 
 const cursoSchema = z.object({
-  nome: texto(150),
-  instituicao: anulavel(texto(150)),
+  nome: texto(L.textoCurto),
+  instituicao: anulavel(texto(L.textoCurto)),
   cargaHoraria: anulavel(
     z.number({ error: 'Carga horária inválida' })
       .int('Use um número inteiro de horas')
@@ -123,7 +128,7 @@ const cursoSchema = z.object({
 });
 
 const idiomaSchema = z.object({
-  idioma: texto(50),
+  idioma: texto(L.idioma),
   nivel: opcao(NIVEIS_IDIOMA),
 });
 
@@ -133,10 +138,13 @@ const linkSchema = z.object({
 });
 
 const projetoSchema = z.object({
-  nome: texto(150),
-  descricao: anulavel(texto(3000)),
+  nome: texto(L.nomeProjeto),
+  descricao: anulavel(texto(L.descricaoProjeto)),
   url: anulavel(urlSchema),
-  tecnologias: anulavel(z.array(texto(50), { error: 'Lista inválida' }).max(20, 'Informe no máximo 20 tecnologias')),
+  tecnologias: anulavel(
+    z.array(texto(L.tecnologia), { error: 'Lista inválida' })
+      .max(L.tecnologias, `Informe no máximo ${L.tecnologias} tecnologias`),
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -152,35 +160,35 @@ const idiomasSemRepeticao = (idiomas) => {
 // POST /curriculo e PUT /curriculo usam o mesmo corpo: o PUT substitui o currículo
 // inteiro, então o que não for enviado (ex.: "projetos") fica vazio.
 export const curriculoSchema = z.object({
-  nomeCompleto: texto(150, 'Nome inválido').refine(
+  nomeCompleto: texto(L.nomeCompleto, 'Nome inválido').refine(
     (nome) => nome.split(/\s+/).length >= 2,
     'Informe nome e sobrenome',
   ),
-  titulo: texto(150),
-  emailContato: emailSchema.max(255, 'Deve ter no máximo 255 caracteres'),
+  titulo: texto(L.titulo),
+  emailContato: emailSchema.max(254, 'Deve ter no máximo 254 caracteres'),
   telefone: telefoneContatoSchema,
-  resumo: texto(3000),
+  resumo: texto(L.resumo),
   nivel: opcao(NIVEIS),
   modalidades: z
     .array(opcao(MODALIDADES), { error: erroCampo('Lista inválida') })
     .min(1, 'Informe ao menos uma modalidade')
     .transform((itens) => [...new Set(itens)]),
-  cidade: texto(100),
+  cidade: texto(L.textoCurto),
   uf: ufSchema,
 
-  locais: lista(localSchema, 10, 'locais'),
-  experiencias: lista(experienciaSchema, 30, 'experiências'),
-  formacoes: lista(formacaoSchema, 20, 'formações'),
-  cursos: lista(cursoSchema, 30, 'cursos'),
-  idiomas: lista(idiomaSchema, 10, 'idiomas')
+  locais: lista(localSchema, L.locais, 'locais'),
+  experiencias: lista(experienciaSchema, L.experiencias, 'experiências'),
+  formacoes: lista(formacaoSchema, L.formacoes, 'formações'),
+  cursos: lista(cursoSchema, L.cursos, 'cursos'),
+  idiomas: lista(idiomaSchema, L.idiomas, 'idiomas')
     .refine(idiomasSemRepeticao, 'Idioma repetido'),
-  links: lista(linkSchema, 10, 'links'),
-  projetos: lista(projetoSchema, 20, 'projetos'),
+  links: lista(linkSchema, L.links, 'links'),
+  projetos: lista(projetoSchema, L.projetos, 'projetos'),
 
   // IDs vindos do autocomplete de GET /skills; a existência é checada no service.
   skills: z
     .array(z.uuid('ID de skill inválido'), { error: erroCampo('Lista inválida') })
-    .max(50, 'Informe no máximo 50 skills')
+    .max(L.skills, `Informe no máximo ${L.skills} skills`)
     .default([])
     .transform((ids) => [...new Set(ids)]),
 });

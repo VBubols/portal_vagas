@@ -13,34 +13,39 @@ import {
   NIVEIS, MODALIDADES, UFS, CONTRATACOES, ORIGENS_VAGA,
   GRAUS, SITUACOES_FORMACAO, NIVEIS_IDIOMA, TIPOS_LINK,
 } from '../constants/enums.js';
+import { LIMITES_CURRICULO as L } from '../constants/curriculo.limites.js';
 
 const raiz = path.dirname(fileURLToPath(import.meta.url));
 
 // Currículo: as listas são as mesmas na entrada (POST/PUT) e na saída (GET).
 // Só mudam as skills (entrada: ids; saída: objetos) e os campos gerados pelo servidor.
-const data = { type: 'string', format: 'date', example: '2024-03-01' };
+const data = {
+  type: 'string',
+  example: '2024-03-01',
+  description: 'Data `AAAA-MM-DD`. Também aceita `AAAA-MM` (vira o dia 01).',
+};
 const texto = (extra = {}) => ({ type: 'string', ...extra });
 const nulo = (schema) => ({ ...schema, nullable: true });
 
 const camposCurriculo = {
-  nomeCompleto: texto({ example: 'Maria da Conceição', description: 'Nome e sobrenome', maxLength: 150 }),
-  titulo: texto({ example: 'Desenvolvedora Front-end Júnior', maxLength: 150 }),
+  nomeCompleto: texto({ example: 'Maria da Conceição', description: 'Nome e sobrenome', maxLength: L.nomeCompleto }),
+  titulo: texto({ example: 'Desenvolvedora Front-end Júnior', maxLength: L.titulo }),
   emailContato: texto({ format: 'email', example: 'maria@exemplo.com' }),
   telefone: texto({
     example: '(48) 99999-0000',
     description: 'Fixo ou celular, com DDD. Aceita qualquer formatação e é salvo como `(DD) 99999-9999`.',
   }),
-  resumo: texto({ maxLength: 3000 }),
+  resumo: texto({ maxLength: L.resumo }),
   nivel: { type: 'string', enum: NIVEIS },
   modalidades: { type: 'array', minItems: 1, items: { type: 'string', enum: MODALIDADES } },
-  cidade: texto({ example: 'Palhoça', maxLength: 100 }),
+  cidade: texto({ example: 'Palhoça', maxLength: L.textoCurto }),
   uf: { type: 'string', enum: UFS, description: 'Aceita minúsculas na entrada' },
 };
 
 const itensCurriculo = {
   locais: {
     type: 'array',
-    maxItems: 10,
+    maxItems: L.locais,
     description: 'Outras cidades onde a pessoa aceita trabalhar (além da cidade de residência)',
     items: {
       type: 'object',
@@ -50,7 +55,7 @@ const itensCurriculo = {
   },
   experiencias: {
     type: 'array',
-    maxItems: 30,
+    maxItems: L.experiencias,
     items: {
       type: 'object',
       required: ['empresa', 'cargo', 'inicio'],
@@ -63,7 +68,7 @@ const itensCurriculo = {
   },
   formacoes: {
     type: 'array',
-    maxItems: 20,
+    maxItems: L.formacoes,
     items: {
       type: 'object',
       required: ['instituicao', 'curso', 'grau', 'situacao'],
@@ -78,7 +83,7 @@ const itensCurriculo = {
   },
   cursos: {
     type: 'array',
-    maxItems: 30,
+    maxItems: L.cursos,
     items: {
       type: 'object',
       required: ['nome'],
@@ -91,7 +96,7 @@ const itensCurriculo = {
   },
   idiomas: {
     type: 'array',
-    maxItems: 10,
+    maxItems: L.idiomas,
     items: {
       type: 'object',
       required: ['idioma', 'nivel'],
@@ -100,26 +105,26 @@ const itensCurriculo = {
   },
   links: {
     type: 'array',
-    maxItems: 10,
+    maxItems: L.links,
     items: {
       type: 'object',
       required: ['tipo', 'url'],
       properties: {
         tipo: { type: 'string', enum: TIPOS_LINK },
-        url: texto({ format: 'uri', description: 'Somente http:// ou https://', example: 'https://github.com/maria' }),
+        url: texto({ format: 'uri', description: 'Somente http:// ou https://', example: 'https://github.com/maria', maxLength: L.url }),
       },
     },
   },
   projetos: {
     type: 'array',
-    maxItems: 20,
+    maxItems: L.projetos,
     items: {
       type: 'object',
       required: ['nome'],
       properties: {
         nome: texto(), descricao: nulo(texto()),
         url: nulo(texto({ format: 'uri', description: 'Somente http:// ou https://' })),
-        tecnologias: nulo({ type: 'array', maxItems: 20, items: { type: 'string' } }),
+        tecnologias: nulo({ type: 'array', maxItems: L.tecnologias, items: { type: 'string' } }),
       },
     },
   },
@@ -300,7 +305,7 @@ const definition = {
           ...itensCurriculo,
           skills: {
             type: 'array',
-            maxItems: 50,
+            maxItems: L.skills,
             items: { type: 'string', format: 'uuid' },
             description: 'Ids das skills (obtidos em `GET /skills`)',
           },
@@ -313,6 +318,14 @@ const definition = {
           ...camposCurriculo,
           ...itensCurriculo,
           skills: { type: 'array', items: { $ref: '#/components/schemas/Skill' } },
+          completude: {
+            type: 'object',
+            description: 'Indica se o currículo já tem o necessário para cada uso. Não bloqueia nada.',
+            properties: {
+              match: { type: 'boolean', description: 'Tem nível, modalidade, cidade, UF e ao menos uma skill' },
+              pdf: { type: 'boolean', description: '`match` + resumo e ao menos uma formação' },
+            },
+          },
           createdAt: { type: 'string', format: 'date-time' },
           updatedAt: { type: 'string', format: 'date-time' },
         },

@@ -21,8 +21,22 @@ const ordenar = (itens, ...comparadores) => [...(itens ?? [])].sort((a, b) => {
   return 0;
 });
 
+// Indica ao front se o currículo já tem o necessário para cada uso (nada é bloqueado):
+//  - match: o que os filtros e a pontuação de /vagas/recomendadas precisam (skills incluídas);
+//  - pdf: o suficiente para um currículo ATS (experiências e projetos são opcionais).
+export function calcularCompletude(dados) {
+  const match = Boolean(
+    dados.nivel && dados.modalidades?.length && dados.cidade && dados.uf && dados.skills?.length,
+  );
+  const pdf = match && Boolean(
+    dados.nomeCompleto && dados.titulo && dados.resumo && dados.emailContato
+    && dados.telefone && dados.formacoes?.length,
+  );
+  return { match, pdf };
+}
+
 export function serializarCurriculo(cv) {
-  return {
+  const dados = {
     id: cv.id,
     nomeCompleto: cv.nomeCompleto,
     titulo: cv.titulo,
@@ -91,4 +105,6 @@ export function serializarCurriculo(cv) {
     createdAt: cv.createdAt,
     updatedAt: cv.updatedAt,
   };
+
+  return { ...dados, completude: calcularCompletude(dados) };
 }

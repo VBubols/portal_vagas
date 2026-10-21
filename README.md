@@ -101,7 +101,7 @@ portal_vagas/
 │   ├── src/
 │   │   ├── app.js              # entrada da aplicação
 │   │   ├── config/             # database, cors, helmet, rate limit, swagger, fontes e mapeamento de labels
-│   │   ├── constants/          # enums compartilhados (nível, modalidade, UF, grau...)
+│   │   ├── constants/          # enums compartilhados (nível, modalidade, UF, grau...) e limites do currículo
 │   │   ├── controllers/        # auth, usuário, admin, skills, vagas, currículo e PDF
 │   │   ├── middlewares/        # autenticação JWT, autorização por papel, validação com Zod e erros
 │   │   ├── models/             # modelos Sequelize e associações (index.js)
@@ -255,13 +255,13 @@ O corpo do `POST` e do `PUT` é o mesmo:
   "uf": "SC",
   "locais": [{ "cidade": "Florianópolis", "uf": "SC" }],
   "experiencias": [
-    { "empresa": "ACME", "cargo": "Estagiária", "inicio": "2023-01-01", "atual": true }
+    { "empresa": "ACME", "cargo": "Estagiária", "inicio": "2023-01", "atual": true }
   ],
   "formacoes": [
     { "instituicao": "UFSC", "curso": "Sistemas de Informação", "grau": "graduacao",
-      "situacao": "cursando", "inicio": "2021-02-01", "fim": "2025-12-01" }
+      "situacao": "cursando", "inicio": "2021-02", "fim": "2025-12" }
   ],
-  "cursos": [{ "nome": "React", "cargaHoraria": 40, "conclusao": "2023-05-01" }],
+  "cursos": [{ "nome": "React", "cargaHoraria": 40, "conclusao": "2023-05" }],
   "idiomas": [{ "idioma": "Inglês", "nivel": "intermediario" }],
   "links": [{ "tipo": "github", "url": "https://github.com/maria" }],
   "projetos": [{ "nome": "Portal", "tecnologias": ["React", "Node.js"] }],
@@ -274,13 +274,14 @@ Regras:
 - **Obrigatórios:** `nomeCompleto` (nome e sobrenome), `titulo`, `emailContato`, `telefone`, `resumo`, `nivel`, `modalidades` (ao menos uma), `cidade` e `uf`. São as colunas `NOT NULL` do model. Todas as listas e `skills` são opcionais.
 - **Valores fixos:** `nivel`, `modalidades`, `uf`, `grau`, `situacao`, idioma `nivel` e link `tipo` vêm de `src/constants/enums.js`.
 - **Telefone:** fixo ou celular, com DDD, com ou sem `+55`. É salvo formatado, como `(48) 99999-0000`.
-- **Datas:** `AAAA-MM-DD`. `fim` não pode ser anterior a `inicio`. Em experiência, sem `atual: true` o `fim` é obrigatório; com `atual: true` ele é descartado.
+- **Datas:** `AAAA-MM` (campo de mês do formulário) ou `AAAA-MM-DD`; é sempre gravada como `AAAA-MM-DD` (`AAAA-MM` vira o dia 01) e o PDF mostra `MM/AAAA`. `fim` não pode ser anterior a `inicio`. Em experiência, sem `atual: true` o `fim` é obrigatório; com `atual: true` ele é descartado.
 - **Links e projetos:** a URL precisa ser `http://` ou `https://`.
-- **Skills:** são ids existentes na tabela `skill`; ids repetidos são unificados e ids inexistentes dão `400`.
+- **Skills:** são ids existentes na tabela `skill`; ids repetidos são unificados e ids inexistentes dão `400`. São opcionais na gravação, mas sem ao menos uma o currículo não entra no match (veja `completude`).
+- **Limites:** definidos em `src/constants/curriculo.limites.js` (combinados com o grupo) e usados pela validação e pelo Swagger. Por lista: experiências 10, formações 6, cursos 15, idiomas 6, links 6, locais 5, projetos 6 e skills 30. Textos: nome 100, título 80, resumo 600, descrição de experiência 500, descrição de projeto 400, URL 200.
 - **Campos desconhecidos são ignorados:** `id`, `usuarioId` e `cidadeNormalizada` nunca vêm do cliente.
 - **`PUT` substitui tudo:** listas ausentes no corpo ficam vazias. A gravação é atômica (transação): se algo falhar, o currículo anterior permanece intacto.
 - **Ordem das listas:** o banco não guarda a posição dos itens, então a resposta sai em ordem fixa: experiências e formações da mais recente para a mais antiga, e as demais em ordem alfabética.
-- **Resposta:** não traz `usuarioId`, `cidadeNormalizada` nem os ids dos itens das listas (o `PUT` os recria).
+- **Resposta:** não traz `usuarioId`, `cidadeNormalizada` nem os ids dos itens das listas (o `PUT` os recria). Traz `completude: { match, pdf }`, que diz se o currículo já tem o necessário para o match (nível, modalidade, cidade, UF e ao menos uma skill) e para o PDF (o anterior, mais resumo e ao menos uma formação). É só informativo: não bloqueia nada.
 
 ### Como funciona o match
 
