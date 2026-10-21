@@ -10,7 +10,9 @@ const adminRouter = express.Router();
 adminRouter.use(autenticar, autorizar('admin'));
 
 adminRouter.get('/usuarios', listarUsuarios);
+
 adminRouter.patch('/usuarios/:id/desativar', validar(idParamSchema, 'params'), desativarUsuario);
+
 adminRouter.patch('/usuarios/:id/reativar', validar(idParamSchema, 'params'), reativarUsuario);
 
 export default adminRouter;

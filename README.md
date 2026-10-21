@@ -63,7 +63,7 @@ Detalhes em [mvp/mvp.md](./mvp/mvp.md) e diagramas dos fluxos em [mvp/user-flows
 | **Currículo (CRUD)** | **Pronto** | `POST`, `GET` e `PUT /curriculo`, com validação Zod e gravação em transação |
 | Exportação do currículo em PDF | Pronto | `GET /curriculo/pdf`, compatível com ATS |
 | Vagas: busca, recomendação e detalhe | Pronto | Filtros, paginação e match por compatibilidade |
-| Documentação da API | Pronto | Swagger em `/docs` |
+| Documentação da API | Pronto | Swagger em `/docs`, com todas as rotas documentadas |
 | Integração com o GitHub | Parcial | Leitura das issues e mapeamento de labels prontos e validados por script. **Falta a rotina de sincronização que grava as vagas no banco**: hoje nada cria registros em `vaga`, então as rotas de vagas devolvem listas vazias até essa etapa existir |
 | Admin: gestão de vagas | Pendente | Cadastrar, editar e remover vagas internas e ocultar vagas importadas |
 | Frontend | Fora deste repositório | O CORS já está preparado para o Vite em `localhost:5173` |
@@ -298,7 +298,9 @@ Coluna única, texto real e selecionável, fonte padrão (Helvetica), sem tabela
 
 Com a API no ar, acesse `GET /docs` (Swagger UI) ou `GET /docs.json` (especificação OpenAPI).
 
-Para documentar uma rota, escreva um bloco `@openapi` em YAML logo acima dela, no arquivo em `src/routes/` (modelo em `routes/vaga.routes.js`). Schemas e parâmetros reaproveitáveis ficam em `components`, em `src/config/swagger.js`.
+Todas as rotas da API estão documentadas, agrupadas por tag: Autenticação, Usuário, Admin, Skills, Vagas e Currículo. Cada bloco traz parâmetros, corpo, respostas e erros possíveis.
+
+Cada pessoa documenta as próprias rotas: escreva um bloco `@openapi` em YAML logo acima da rota, no arquivo em `src/routes/` (modelo em `routes/vaga.routes.js`). Schemas e parâmetros usados em mais de uma rota ficam em `components`, em `src/config/swagger.js`. Dica: descrição que começa com crase precisa de aspas no YAML, senão o `swagger-jsdoc` descarta a rota inteira.
 
 ### Limites de requisição
 
