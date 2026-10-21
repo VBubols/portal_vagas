@@ -14,6 +14,10 @@ export const CONTRATACOES = ['clt', 'pj', 'estagio', 'freelance', 'temporario', 
 
 export const ORIGENS_VAGA = ['github', 'interna'];
 
+// Área da vaga. Preenchida pela sincronização a partir do título, da categoria
+// da Coodesh ou da fonte (src/config/fontesVagas.js).
+export const STACKS = ['backend', 'frontend', 'fullstack', 'mobile'];
+
 // Localização
 
 export const NOMES_UF = {
@@ -80,5 +84,6 @@ export const ROTULOS = {
     temporario: 'Temporário',
     outro: 'Outro',
   },
+  stacks: { backend: 'Back-end', frontend: 'Front-end', fullstack: 'Full Stack', mobile: 'Mobile' },
   localizacoes: { ...NOMES_UF, [LOCALIZACAO_INTERNACIONAL]: 'Exterior' },
 };

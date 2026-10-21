@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  extrairNiveisDoTitulo, separarTitulo, extrairLocal,
+  extrairNiveisDoTitulo, separarTitulo, extrairLocal, montarVaga,
 } from '../src/services/extracaoVaga.service.js';
 
 // Passo 1: nível pelo título
@@ -94,3 +94,126 @@ for (const [trecho, esperado] of casosLocal) {
     assert.deepEqual(extrairLocal(trecho), esperado);
   });
 }
+
+// Passo 4: montar a vaga juntando labels e título
+
+const issue = (titulo, { fonte = 'backend-br/vagas', labels = [], descricao = '' } = {}) => ({
+  githubId: 5868130015,
+  numero: 12470,
+  fonte,
+  titulo,
+  descricao,
+  labels: labels.map((nome) => ({ nome, descricao: '' })),
+  url: 'https://github.com/backend-br/vagas/issues/12470',
+  criadaEm: '2026-10-15T14:33:24Z',
+  atualizadaEm: '2026-10-15T14:34:10Z',
+});
+
+// Compara só os campos que importam em cada caso.
+const campos = (resultado, ...nomes) => Object.fromEntries(nomes.map((n) => [n, resultado.vaga[n]]));
+
+test('vaga: nível do título ganha das labels', () => {
+  const r = montarVaga(issue('[Remoto] Full Stack Developer Pleno na Rotha IA', {
+    fonte: 'frontendbr/vagas', labels: ['Júnior', 'Pleno', 'Remoto'],
+  }));
+  assert.deepEqual(campos(r, 'nivel', 'modalidade', 'stack', 'empresa', 'titulo'), {
+    nivel: 'pleno', modalidade: 'remoto', stack: 'fullstack', empresa: 'Rotha IA',
+    titulo: 'Full Stack Developer Pleno na Rotha IA',
+  });
+});
+
+test('vaga: sem nível no título, usa o menor das labels', () => {
+  const r = montarVaga(issue('[Remoto] Back-end Developer Python - Shipwell', {
+    labels: ['Pleno', 'Sênior', 'Remoto', 'Python'],
+  }));
+  assert.deepEqual(campos(r, 'nivel', 'modalidade', 'stack', 'empresa'), {
+    nivel: 'pleno', modalidade: 'remoto', stack: 'backend', empresa: null,
+  });
+  assert.deepEqual(r.skillsDasLabels, ['Python']);
+});
+
+test('vaga: modalidade do título ganha das labels, cidade vem com UF', () => {
+  const r = montarVaga(issue('[Híbrido/Curitiba] Front-end Developer React-USD (Jcal)', {
+    fonte: 'frontendbr/vagas', labels: ['Especialista', 'Remoto', 'Sênior', 'Híbrido'],
+  }));
+  assert.deepEqual(campos(r, 'nivel', 'modalidade', 'cidade', 'uf', 'cidadeNormalizada', 'stack'), {
+    nivel: 'senior', modalidade: 'hibrido', cidade: 'Curitiba', uf: 'PR',
+    cidadeNormalizada: 'curitiba', stack: 'frontend',
+  });
+});
+
+test('vaga: Google sem labels, tudo sai do título', () => {
+  const r = montarVaga(issue(
+    '[Belo Horizonte ou São Paulo, Brasil] Software Engineer, Early Career (For Women in Tech Candidates) na Google',
+  ));
+  assert.deepEqual(campos(r, 'nivel', 'modalidade', 'cidade', 'uf', 'empresa', 'stack'), {
+    nivel: 'junior', modalidade: null, cidade: 'Belo Horizonte', uf: 'MG', empresa: 'Google', stack: 'backend',
+  });
+});
+
+test('vaga: só no exterior grava cidade Exterior', () => {
+  const r = montarVaga(issue('[Cidade do México, México] Senior Software Engineer, Chrome Test Infrastructure na Google'));
+  assert.deepEqual(campos(r, 'nivel', 'cidade', 'uf', 'cidadeNormalizada'), {
+    nivel: 'senior', cidade: 'Exterior', uf: null, cidadeNormalizada: 'exterior',
+  });
+});
+
+test('vaga: Brasil e exterior juntos, fica a cidade brasileira', () => {
+  const r = montarVaga(issue('[São Paulo, Brasil / Santiago, Chile + 3 cidades] Cloud Data and Analytics Consultant na Google'));
+  assert.deepEqual(campos(r, 'cidade', 'uf'), { cidade: 'São Paulo', uf: 'SP' });
+});
+
+test('vaga: UF e contratação pelas labels', () => {
+  const r = montarVaga(issue('[Híbrido] Developer Full Stack Python AI/LLM - Convolut', {
+    fonte: 'frontendbr/vagas', labels: ['Estágio', 'Híbrido', 'PJ', 'São Paulo', 'Sênior'],
+  }));
+  assert.deepEqual(campos(r, 'modalidade', 'cidade', 'uf', 'contratacao', 'stack'), {
+    modalidade: 'hibrido', cidade: null, uf: 'SP', contratacao: 'pj', stack: 'fullstack',
+  });
+});
+
+test('vaga: label Exterior sem local no título', () => {
+  const r = montarVaga(issue('Front-end Developer na Empresa X', {
+    fonte: 'frontendbr/vagas', labels: ['Exterior'],
+  }));
+  assert.deepEqual(campos(r, 'cidade', 'uf', 'empresa'), { cidade: 'Exterior', uf: null, empresa: 'Empresa X' });
+});
+
+test('vaga: stack pela categoria da Coodesh quando o título não diz', () => {
+  const r = montarVaga(issue('[Belo Horizonte, Brasil] Senior Software Engineer, Kids and Families na Google', {
+    fonte: 'frontendbr/vagas',
+    descricao: '## Labels\n#### Alocação\nAlocado\n#### Categoria\nFull-Stack',
+  }));
+  assert.equal(r.vaga.stack, 'fullstack');
+});
+
+test('vaga: contratação na ordem padrão e emoji fora da empresa', () => {
+  const r = montarVaga(issue('[Híbrido-SP] Fullstack developer Python/React & IA na Evertec 🧡', {
+    labels: ['PJ', 'CLT'],
+  }));
+  assert.deepEqual(campos(r, 'contratacao', 'empresa', 'uf'), { contratacao: 'clt', empresa: 'Evertec', uf: 'SP' });
+});
+
+test('vaga: campos fixos da origem GitHub', () => {
+  const r = montarVaga(issue('[Remoto] Engenheiro de Software- Micro 1'));
+  assert.deepEqual(campos(r, 'origem', 'githubIssueId', 'link', 'ativa', 'publicadaEm'), {
+    origem: 'github',
+    githubIssueId: 5868130015,
+    link: 'https://github.com/backend-br/vagas/issues/12470',
+    ativa: true,
+    publicadaEm: '2026-10-15T14:33:24Z',
+  });
+  assert.equal('oculta' in r.vaga, false); // a gravação não pode sobrescrever o que o admin decidiu
+});
+
+test('vaga: descarta Avisos, Stale e as regras do repositório', () => {
+  assert.equal(montarVaga(issue('Atenção: leia nossas regras', { fonte: 'frontendbr/vagas', labels: ['⚠️ Avisos'] })), null);
+  assert.equal(montarVaga(issue('[Remoto] Dev Java - Empresa X', { labels: ['Stale'] })), null);
+  assert.equal(montarVaga(issue('[PT-BR] - Regras para divulgação de vagas.')), null);
+  assert.equal(montarVaga(issue('[EN-US] - Rules for advertising job openings.')), null);
+});
+
+test('vaga: título longo é cortado no limite do banco', () => {
+  const r = montarVaga(issue(`[Remoto] ${'Engenheiro '.repeat(40)}`));
+  assert.equal(r.vaga.titulo.length <= 255, true);
+});
