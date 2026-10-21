@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extrairNiveisDoTitulo } from '../src/services/extracaoVaga.service.js';
+import { extrairNiveisDoTitulo, separarTitulo } from '../src/services/extracaoVaga.service.js';
 
 const casosNivel = [
     ['[REMOTO] Back-end Developer JR - PORT LOUIS', ['junior']],
@@ -22,5 +22,32 @@ const casosNivel = [
   for (const [titulo, esperado] of casosNivel) {
     test(`nível: ${titulo}`, () => {
       assert.deepEqual(extrairNiveisDoTitulo(titulo), esperado);
+    });
+  }
+
+  const casosSeparar = [
+    ['[REMOTO] Back-end Developer JR - PORT LOUIS',
+      { local: 'REMOTO', cargo: 'Back-end Developer JR - PORT LOUIS' }],
+    ['[Híbrido / São Paulo, Brasil] Engenheiro de Software Backend Sênior (Híbrido, São Paulo) na Coodesh',
+      { local: 'Híbrido / São Paulo, Brasil', cargo: 'Engenheiro de Software Backend Sênior (Híbrido, São Paulo) na Coodesh' }],
+    ['(Full-remote) Senior Embedded Engineer - Jobsity',
+      { local: 'Full-remote', cargo: 'Senior Embedded Engineer - Jobsity' }],
+    ['[Remoto ]  Full-stack Engineer (HealthTech, EHR/EMR, Terraform, React) USD - Strider',
+      { local: 'Remoto', cargo: 'Full-stack Engineer (HealthTech, EHR/EMR, Terraform, React) USD - Strider' }],
+    ['[EN-US] - Rules for advertising job openings.',
+      { local: 'EN-US', cargo: 'Rules for advertising job openings.' }],
+    ['Desenvolvedor / Engenheiro de IA (AI Stack) - Programa AI Stack - Rio de Janeiro - RJ',
+      { local: null, cargo: 'Desenvolvedor / Engenheiro de IA (AI Stack) - Programa AI Stack - Rio de Janeiro - RJ' }],
+    ['[Remoto ou Híbrido - São Paulo/SP] Full Stack Developer - Cogfy',
+      { local: 'Remoto ou Híbrido - São Paulo/SP', cargo: 'Full Stack Developer - Cogfy' }],
+    ['[São Paulo, Brasil / Santiago, Chile + 3 cidades] Cloud Data and Analytics Consultant na Google',
+      { local: 'São Paulo, Brasil / Santiago, Chile + 3 cidades', cargo: 'Cloud Data and Analytics Consultant na Google' }],
+    ['[] Vaga com colchete vazio', { local: null, cargo: 'Vaga com colchete vazio' }],
+    ['', { local: null, cargo: '' }],
+  ];
+  
+  for (const [titulo, esperado] of casosSeparar) {
+    test(`separar: ${titulo || '(vazio)'}`, () => {
+      assert.deepEqual(separarTitulo(titulo), esperado);
     });
   }
