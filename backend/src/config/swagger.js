@@ -3,7 +3,8 @@
 // Como documentar uma rota nova: escreva um bloco `@openapi` (YAML) logo acima
 // da rota, no próprio arquivo em src/routes/. Veja routes/vaga.routes.js como
 // modelo. Os schemas e parâmetros reaproveitáveis ficam em `components` abaixo;
-// quem criar um schema novo (ex.: Curriculo) acrescenta aqui.
+// quem criar um schema novo (usado em mais de uma rota) acrescenta aqui. Schemas
+// usados por uma rota só podem ficar no próprio bloco `@openapi`.
 //
 // A documentação fica em GET /docs (interface) e GET /docs.json (especificação).
 import path from 'node:path';
@@ -61,7 +62,7 @@ const itensCurriculo = {
       required: ['empresa', 'cargo', 'inicio'],
       description: 'Sem `atual: true`, `fim` é obrigatório. Com `atual: true`, `fim` é descartado.',
       properties: {
-        empresa: texto(), cargo: texto(), cidade: nulo(texto()), uf: nulo({ type: 'string', enum: UFS }),
+        empresa: texto(), cargo: texto(), cidade: nulo(texto()), uf: nulo({ type: 'string', enum: [...UFS, null] }) /* no OpenAPI 3.0, enum anulável lista null */,
         inicio: data, fim: nulo(data), atual: { type: 'boolean', default: false }, descricao: nulo(texto()),
       },
     },
@@ -130,6 +131,23 @@ const itensCurriculo = {
   },
 };
 
+// Usuário: formato devolvido por cadastro, login e rotas de admin (ver utils/serializarUsuario.js).
+const propriedadesUsuario = {
+  id: { type: 'string', format: 'uuid' },
+  nome: { type: 'string', example: 'Maria' },
+  sobrenome: { type: 'string', example: 'Silva' },
+  email: { type: 'string', format: 'email', example: 'maria@exemplo.com' },
+  role: { type: 'string', enum: ['admin', 'usuario'] },
+  ativo: { type: 'boolean', description: 'Contas desativadas não fazem login nem usam o token' },
+  cpf: nulo(texto({ example: '***.982.247-**', description: 'Mascarado: só os 6 dígitos do meio aparecem' })),
+  telefoneCelular: nulo(texto({ example: '48999990000', description: 'Só dígitos (DDD + 9 dígitos)' })),
+  telefoneFixo: nulo(texto({ example: '4833334444', description: 'Só dígitos (DDD + 8 dígitos)' })),
+  dataNascimento: nulo({ type: 'string', format: 'date', example: '1995-05-10' }),
+  paisOrigem: nulo(texto({ example: 'BR', description: 'Código ISO 3166-1 alpha-2' })),
+  createdAt: { type: 'string', format: 'date-time' },
+  updatedAt: { type: 'string', format: 'date-time' },
+};
+
 const definition = {
   openapi: '3.0.3',
   info: {
@@ -137,10 +155,16 @@ const definition = {
     version: '1.0.0',
     description:
       'API do portal agregador de vagas de tecnologia. ' +
-      'Rotas autenticadas exigem o header `Authorization: Bearer <token>` (obtido em `/auth/login`).',
+      'Rotas autenticadas exigem o header `Authorization: Bearer <token>` (obtido em `/auth/login`). ' +
+      'Erros de validação de corpo respondem `400` com `{ mensagem, detalhes: [{ campo, mensagem }] }`. ' +
+      'Todas as rotas têm limite de 100 requisições por IP a cada 15 minutos (`429`); cadastro e login têm limites próprios, descritos em cada rota.',
   },
   servers: [{ url: '/', description: 'Servidor atual' }],
   tags: [
+    { name: 'Autenticação', description: 'Cadastro e login' },
+    { name: 'Usuário', description: 'Perfil, senha e conta do usuário logado' },
+    { name: 'Admin', description: 'Administração de usuários (somente perfil `admin`)' },
+    { name: 'Skills', description: 'Skills para o autocomplete do currículo' },
     { name: 'Vagas', description: 'Busca, recomendação e detalhe de vagas' },
     { name: 'Currículo', description: 'Currículo do usuário' },
   ],
@@ -203,6 +227,31 @@ const definition = {
               },
             },
           },
+        },
+      },
+      Usuario: {
+        type: 'object',
+        properties: propriedadesUsuario,
+      },
+      PerfilDoUsuario: {
+        type: 'object',
+        description:
+          'Resposta de `GET` e `POST /usuario/perfil`. Hoje ela difere do `Usuario` das outras rotas: ' +
+          'traz o CPF completo (só dígitos) e dois campos internos do armazenamento do CPF.',
+        properties: {
+          ...propriedadesUsuario,
+          cpf: nulo(texto({ example: '52998224725', description: 'CPF completo, só dígitos (nas demais rotas ele vem mascarado)' })),
+          cpfCriptografado: nulo(texto({ description: 'Campo interno (CPF cifrado). Não dependa dele.' })),
+          cpfHash: nulo(texto({ description: 'Campo interno (hash do CPF). Não dependa dele.' })),
+        },
+      },
+      ListaDeUsuarios: {
+        type: 'object',
+        properties: {
+          dados: { type: 'array', items: { $ref: '#/components/schemas/Usuario' } },
+          total: { type: 'integer', example: 42, description: 'Total de usuários que atendem à busca' },
+          pagina: { type: 'integer', example: 1 },
+          limite: { type: 'integer', example: 20 },
         },
       },
       Skill: {
