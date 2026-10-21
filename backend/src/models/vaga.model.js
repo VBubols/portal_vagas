@@ -10,6 +10,9 @@ export const Vaga = sequelize.define(
   {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     origem: { type: DataTypes.ENUM(...ORIGENS_VAGA), allowNull: false },
+    // Repositório de origem ('backend-br/vagas'). A sincronização usa para inativar
+    // só as vagas da fonte que foi lida com sucesso.
+    fonte: DataTypes.STRING,
     githubIssueId: { type: DataTypes.BIGINT, unique: true },
     titulo: { type: DataTypes.STRING, allowNull: false },
     empresa: DataTypes.STRING,

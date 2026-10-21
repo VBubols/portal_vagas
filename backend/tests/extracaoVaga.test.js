@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  extrairNiveisDoTitulo, separarTitulo, extrairLocal, montarVaga,
+  extrairNiveisDoTitulo, separarTitulo, extrairLocal, montarVaga, criarIndiceSkills, extrairSkills,
 } from '../src/services/extracaoVaga.service.js';
 
 // Passo 1: nível pelo título
@@ -196,8 +196,9 @@ test('vaga: contratação na ordem padrão e emoji fora da empresa', () => {
 
 test('vaga: campos fixos da origem GitHub', () => {
   const r = montarVaga(issue('[Remoto] Engenheiro de Software- Micro 1'));
-  assert.deepEqual(campos(r, 'origem', 'githubIssueId', 'link', 'ativa', 'publicadaEm'), {
+  assert.deepEqual(campos(r, 'origem', 'fonte', 'githubIssueId', 'link', 'ativa', 'publicadaEm'), {
     origem: 'github',
+    fonte: 'backend-br/vagas',
     githubIssueId: 5868130015,
     link: 'https://github.com/backend-br/vagas/issues/12470',
     ativa: true,
@@ -216,4 +217,50 @@ test('vaga: descarta Avisos, Stale e as regras do repositório', () => {
 test('vaga: título longo é cortado no limite do banco', () => {
   const r = montarVaga(issue(`[Remoto] ${'Engenheiro '.repeat(40)}`));
   assert.equal(r.vaga.titulo.length <= 255, true);
+});
+
+// Passo 5: skills pelas labels, pelo título e pela descrição
+
+// Amostra do seed de skills, com o próprio nome como id para facilitar a leitura.
+const indice = criarIndiceSkills([
+  ['JavaScript', ['js', 'ecmascript']], ['TypeScript', ['ts']], ['Python', ['python3', 'py']],
+  ['Java', []], ['C#', ['csharp']], ['C++', ['cpp']], ['C', []], ['Go', ['golang']],
+  ['SQL', []], ['MySQL', []], ['PostgreSQL', ['postgres']], ['SQL Server', ['sqlserver']],
+  ['React', ['reactjs', 'react.js']], ['React Native', ['reactnative']], ['Next.js', ['next', 'nextjs']],
+  ['Node.js', ['node', 'nodejs']], ['Express', ['expressjs', 'express.js']], ['.NET', ['dotnet', 'asp.net']],
+  ['REST API', ['rest', 'restful']], ['GitHub', []], ['GitHub Actions', ['actions']], ['Docker', []],
+].map(([nome, aliases]) => ({ id: nome, nome, aliases })));
+
+const skillsDe = (entrada) => extrairSkills(entrada, indice).ids.sort();
+
+const casosSkills = [
+  ['labels casam pelo nome e pelos aliases', { labels: ['Python', 'Node.js', 'golang'] }, ['Go', 'Node.js', 'Python']],
+  ['label curta vale', { labels: ['Go', 'C'] }, ['C', 'Go']],
+  ['Java e JavaScript são skills diferentes', { descricao: 'Experiência com Java e JavaScript' }, ['Java', 'JavaScript']],
+  ['JavaScript não puxa Java', { descricao: 'Conhecimento em JavaScript' }, ['JavaScript']],
+  ['Google não é Go', { descricao: 'Golang e Google Cloud' }, ['Go']],
+  ['"go" solto no texto não vale', { descricao: "Let's go! Vaga para quem quer crescer" }, []],
+  ['C# e ASP.NET, sem puxar C', { descricao: 'C# e .NET Core, ASP.NET MVC' }, ['.NET', 'C#']],
+  ['C/C++ puxa só C++ (C de uma letra só vale por label)', { descricao: 'Experiência com C/C++' }, ['C++']],
+  ['React Native não puxa React', { descricao: 'App em React Native e Flutter' }, ['React Native']],
+  ['HTML da descrição é ignorado', { descricao: '<li>3 years with <b>React</b> and TypeScript</li>' }, ['React', 'TypeScript']],
+  ['links são ignorados', { descricao: 'Candidate-se: https://coodesh.com/jobs/dev-python-123?utm_source=github' }, []],
+  ['palavras comuns em inglês não viram skill', { descricao: 'Next steps: express interest, the rest is with us' }, []],
+  ['a forma completa vale', { descricao: 'Next.js, Express.js e APIs RESTful' }, ['Express', 'Next.js', 'REST API']],
+  ['MySQL e PostgreSQL não puxam SQL', { descricao: 'MySQL e PostgreSQL' }, ['MySQL', 'PostgreSQL']],
+  ['SQL Server não puxa SQL', { descricao: 'Banco SQL Server' }, ['SQL Server']],
+  ['GitHub Actions não puxa GitHub', { descricao: 'CI com GitHub Actions e Docker' }, ['Docker', 'GitHub Actions']],
+  ['título também conta', { titulo: '[Híbrido-SP] Fullstack developer Python/React & IA' }, ['Python', 'React']],
+  ['sem repetição entre label e texto', { labels: ['Python'], descricao: 'Python 3 e python3' }, ['Python']],
+];
+
+for (const [nome, entrada, esperado] of casosSkills) {
+  test(`skills: ${nome}`, () => {
+    assert.deepEqual(skillsDe(entrada), esperado);
+  });
+}
+
+test('skills: label sem skill cadastrada volta em naoEncontradas', () => {
+  const { naoEncontradas } = extrairSkills({ labels: ['Python', 'Apache Kafka', 'DDD'] }, indice);
+  assert.deepEqual(naoEncontradas, ['Apache Kafka', 'DDD']);
 });
