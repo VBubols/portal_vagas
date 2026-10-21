@@ -9,9 +9,121 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import swaggerJsdoc from 'swagger-jsdoc';
-import { NIVEIS, MODALIDADES, UFS, CONTRATACOES, ORIGENS_VAGA } from '../constants/enums.js';
+import {
+  NIVEIS, MODALIDADES, UFS, CONTRATACOES, ORIGENS_VAGA,
+  GRAUS, SITUACOES_FORMACAO, NIVEIS_IDIOMA, TIPOS_LINK,
+} from '../constants/enums.js';
 
 const raiz = path.dirname(fileURLToPath(import.meta.url));
+
+// Currículo: as listas são as mesmas na entrada (POST/PUT) e na saída (GET).
+// Só mudam as skills (entrada: ids; saída: objetos) e os campos gerados pelo servidor.
+const data = { type: 'string', format: 'date', example: '2024-03-01' };
+const texto = (extra = {}) => ({ type: 'string', ...extra });
+const nulo = (schema) => ({ ...schema, nullable: true });
+
+const camposCurriculo = {
+  nomeCompleto: texto({ example: 'Maria da Conceição', description: 'Nome e sobrenome', maxLength: 150 }),
+  titulo: texto({ example: 'Desenvolvedora Front-end Júnior', maxLength: 150 }),
+  emailContato: texto({ format: 'email', example: 'maria@exemplo.com' }),
+  telefone: texto({
+    example: '(48) 99999-0000',
+    description: 'Fixo ou celular, com DDD. Aceita qualquer formatação e é salvo como `(DD) 99999-9999`.',
+  }),
+  resumo: texto({ maxLength: 3000 }),
+  nivel: { type: 'string', enum: NIVEIS },
+  modalidades: { type: 'array', minItems: 1, items: { type: 'string', enum: MODALIDADES } },
+  cidade: texto({ example: 'Palhoça', maxLength: 100 }),
+  uf: { type: 'string', enum: UFS, description: 'Aceita minúsculas na entrada' },
+};
+
+const itensCurriculo = {
+  locais: {
+    type: 'array',
+    maxItems: 10,
+    description: 'Outras cidades onde a pessoa aceita trabalhar (além da cidade de residência)',
+    items: {
+      type: 'object',
+      required: ['cidade', 'uf'],
+      properties: { cidade: texto({ example: 'Florianópolis' }), uf: { type: 'string', enum: UFS } },
+    },
+  },
+  experiencias: {
+    type: 'array',
+    maxItems: 30,
+    items: {
+      type: 'object',
+      required: ['empresa', 'cargo', 'inicio'],
+      description: 'Sem `atual: true`, `fim` é obrigatório. Com `atual: true`, `fim` é descartado.',
+      properties: {
+        empresa: texto(), cargo: texto(), cidade: nulo(texto()), uf: nulo({ type: 'string', enum: UFS }),
+        inicio: data, fim: nulo(data), atual: { type: 'boolean', default: false }, descricao: nulo(texto()),
+      },
+    },
+  },
+  formacoes: {
+    type: 'array',
+    maxItems: 20,
+    items: {
+      type: 'object',
+      required: ['instituicao', 'curso', 'grau', 'situacao'],
+      properties: {
+        instituicao: texto(), curso: texto(),
+        grau: { type: 'string', enum: GRAUS },
+        situacao: { type: 'string', enum: SITUACOES_FORMACAO },
+        inicio: nulo(data),
+        fim: nulo({ ...data, description: 'Conclusão ou, se estiver cursando, previsão de conclusão' }),
+      },
+    },
+  },
+  cursos: {
+    type: 'array',
+    maxItems: 30,
+    items: {
+      type: 'object',
+      required: ['nome'],
+      properties: {
+        nome: texto(), instituicao: nulo(texto()),
+        cargaHoraria: nulo({ type: 'integer', minimum: 1, maximum: 10000, description: 'Em horas' }),
+        conclusao: nulo(data),
+      },
+    },
+  },
+  idiomas: {
+    type: 'array',
+    maxItems: 10,
+    items: {
+      type: 'object',
+      required: ['idioma', 'nivel'],
+      properties: { idioma: texto({ example: 'Inglês' }), nivel: { type: 'string', enum: NIVEIS_IDIOMA } },
+    },
+  },
+  links: {
+    type: 'array',
+    maxItems: 10,
+    items: {
+      type: 'object',
+      required: ['tipo', 'url'],
+      properties: {
+        tipo: { type: 'string', enum: TIPOS_LINK },
+        url: texto({ format: 'uri', description: 'Somente http:// ou https://', example: 'https://github.com/maria' }),
+      },
+    },
+  },
+  projetos: {
+    type: 'array',
+    maxItems: 20,
+    items: {
+      type: 'object',
+      required: ['nome'],
+      properties: {
+        nome: texto(), descricao: nulo(texto()),
+        url: nulo(texto({ format: 'uri', description: 'Somente http:// ou https://' })),
+        tecnologias: nulo({ type: 'array', maxItems: 20, items: { type: 'string' } }),
+      },
+    },
+  },
+};
 
 const definition = {
   openapi: '3.0.3',
@@ -67,6 +179,22 @@ const definition = {
               properties: {
                 campo: { type: 'string', example: 'limite' },
                 mensagem: { type: 'string', example: 'Too big: expected number to be <=50' },
+              },
+            },
+          },
+        },
+      },
+      ErroDados: {
+        type: 'object',
+        properties: {
+          mensagem: { type: 'string', example: 'Dados inválidos' },
+          detalhes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                campo: { type: 'string', example: 'experiencias.0.fim' },
+                mensagem: { type: 'string', example: 'A data de término não pode ser anterior à de início' },
               },
             },
           },
@@ -161,6 +289,32 @@ const definition = {
             allOf: [{ $ref: '#/components/schemas/Match' }],
             description: '`null` se o usuário ainda não tem currículo',
           },
+        },
+      },
+      CurriculoEntrada: {
+        type: 'object',
+        required: ['nomeCompleto', 'titulo', 'emailContato', 'telefone', 'resumo', 'nivel', 'modalidades', 'cidade', 'uf'],
+        description: 'Corpo do POST e do PUT. Listas e `skills` são opcionais (ausentes = vazias).',
+        properties: {
+          ...camposCurriculo,
+          ...itensCurriculo,
+          skills: {
+            type: 'array',
+            maxItems: 50,
+            items: { type: 'string', format: 'uuid' },
+            description: 'Ids das skills (obtidos em `GET /skills`)',
+          },
+        },
+      },
+      Curriculo: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          ...camposCurriculo,
+          ...itensCurriculo,
+          skills: { type: 'array', items: { $ref: '#/components/schemas/Skill' } },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
         },
       },
     },

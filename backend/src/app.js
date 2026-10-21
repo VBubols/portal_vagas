@@ -14,6 +14,7 @@ import adminRouter from './routes/admin.routes.js';
 import skillRouter from './routes/skill.routes.js';
 import vagaRouter from './routes/vaga.routes.js';
 import curriculoPdfRouter from './routes/curriculo-pdf.routes.js';
+import curriculoRouter from './routes/curriculo.routes.js';
 import { swaggerSpec } from './config/swagger.js';
 import { corsConfig } from './config/cors.js';
 import { helmetConfig } from './config/helmet.js';
@@ -50,7 +51,7 @@ app.use('/admin', adminRouter);
 app.use('/skills', skillRouter);
 app.use('/vagas', vagaRouter);
 app.use('/curriculo/pdf', curriculoPdfRouter);
-
+app.use('/curriculo', curriculoRouter);
 
 app.use(rotaNaoEncontrada);
 app.use(tratadorDeErros); // sempre por último

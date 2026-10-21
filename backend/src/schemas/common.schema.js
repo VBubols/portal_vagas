@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { cpfValido, somenteDigitos } from '../utils/cpf.js';
 
 // Mensagem de erro em português para campo ausente/vazio; senão, a mensagem de "inválido"
-const erroCampo = (mensagemInvalida) => (issue) =>
+export const erroCampo = (mensagemInvalida) => (issue) =>
     issue.input === undefined || issue.input === '' ? 'Campo obrigatório' : mensagemInvalida;
 
 export const emailSchema = z
@@ -38,7 +38,7 @@ export const cpfSchema = z
     .transform(somenteDigitos)
     .refine(cpfValido, 'CPF inválido');
 
-function normalizarTelefone(valor) {
+export function normalizarTelefone(valor) {
     let digitos = somenteDigitos(valor);
     if ((digitos.length === 12 || digitos.length === 13) && digitos.startsWith('55')) {
         digitos = digitos.slice(2); // remove +55
