@@ -149,11 +149,14 @@ export async function recomendarVagas({ filtros, pagina, limite, curriculo }) {
 }
 
 // GET /vagas/:id: vaga completa + match detalhado (se a pessoa tem CV).
-export async function obterVaga({ id, curriculo }) {
+// incluirIndisponiveis é opção interna usada após autenticação/autorização do
+// admin. As rotas públicas não a recebem do cliente e mantêm o filtro padrão.
+export async function obterVaga({ id, curriculo, incluirIndisponiveis = false, transaction }) {
   const linha = await Vaga.findOne({
-    where: { id, ativa: true, oculta: false },
+    where: incluirIndisponiveis ? { id } : { id, ativa: true, oculta: false },
     attributes: { exclude: ['githubIssueId', 'ativa', 'oculta'] },
     include: [INCLUDE_SKILLS],
+    transaction,
   });
   if (!linha) return null;
 
