@@ -1,3 +1,4 @@
+import pg from 'pg';
 import { Sequelize } from 'sequelize';
 
 // Produção (Supabase): a conexão vem inteira em DATABASE_URL.
@@ -10,6 +11,9 @@ const ssl = (process.env.DB_SSL ?? (url ? 'true' : 'false')) === 'true';
 
 const opcoes = {
   dialect: 'postgres',
+  // O Sequelize carrega o pg com um require dinâmico, que a Vercel não enxerga ao montar
+  // a função: sem passar o módulo aqui, a API cai com "Please install pg package manually".
+  dialectModule: pg,
   logging: false,
   // Na Vercel cada instância da função abre poucas conexões. Quem segura o resto
   // é o pooler do Supabase (porta 6543).
