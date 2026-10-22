@@ -2,7 +2,7 @@
 
 Portal agregador de vagas de tecnologia, no estilo Indeed, focado em quem está começando a carreira. O candidato preenche o currículo uma única vez, recebe vagas ordenadas por compatibilidade com o seu perfil, vê quais requisitos atende e quais faltam, e exporta o currículo em PDF compatível com ATS.
 
-> **Status:** backend em desenvolvimento. Estão implementados autenticação, gestão de conta, administração de usuários, skills, **CRUD do currículo**, exportação em PDF, busca/recomendação de vagas com match, sincronização de vagas do GitHub e documentação Swagger. A validação integrada com PostgreSQL ainda está pendente nesta revisão. Faltam a gestão de vagas pelo admin e o frontend (ver [Status e roadmap](#status-e-roadmap)).
+> **Status:** backend em desenvolvimento. Estão implementados autenticação, gestão de conta, administração de usuários, skills, **CRUD do currículo**, exportação em PDF, busca/recomendação de vagas com match, sincronização de vagas do GitHub, gestão administrativa de vagas internas e documentação Swagger. A validação integrada com PostgreSQL ainda está pendente nesta revisão. Falta o frontend (ver [Status e roadmap](#status-e-roadmap)).
 
 ## Problema
 
@@ -49,7 +49,7 @@ Pessoas em início de carreira em tecnologia têm dificuldade para encontrar vag
 ### Admin
 
 - Gerencia usuários (listar, desativar, reativar).
-- Cadastra, edita e remove vagas internas, e oculta vagas importadas do GitHub (que não são editáveis, pois a sincronização sobrescreveria a edição).
+- Cadastra, edita e remove vagas internas, e oculta ou reexibe vagas de qualquer origem. Vagas importadas do GitHub não podem ser editadas nem excluídas pelo admin, pois são mantidas pela sincronização.
 
 ### Segurança
 
@@ -73,15 +73,16 @@ Detalhes em [mvp/mvp.md](./mvp/mvp.md) e diagramas dos fluxos em [mvp/user-flows
 | Vagas: busca, recomendação e detalhe | Implementado | Filtros, paginação e match por compatibilidade |
 | Documentação da API | Implementado | Swagger em `/docs`, com todas as rotas documentadas |
 | Integração com o GitHub | Implementado | Sincronização manual por `POST /admin/vagas/sincronizar`, com criação, atualização e inativação de vagas. Validação integrada pendente; agendamento ainda não implementado |
-| Admin: gestão de vagas | Pendente | Cadastrar, editar e remover vagas internas e ocultar vagas importadas |
+| Admin: gestão de vagas | Implementado | Listar vagas, cadastrar, editar e remover vagas internas, além de ocultar e reexibir vagas de qualquer origem |
 | Frontend | Ausente neste repositório | O CORS já está preparado para o Vite em `localhost:5173` |
 
-“Implementado” indica código presente; não significa validação de ponta a ponta com PostgreSQL. Na revisão desta branch, os 133 testes automatizados passaram sem banco.
+“Implementado” indica código presente; não significa validação de ponta a ponta com PostgreSQL. Na revisão desta branch, os 164 testes automatizados passaram sem conexão com PostgreSQL; os acessos ao banco nos testes de admin são simulados.
 
 Pendências técnicas conhecidas:
 
 - O `sequelize.sync()` cria as tabelas que faltam, mas **não altera** tabelas existentes. Não há migrations: mudou um model, é preciso recriar ou alterar a tabela à mão.
-- Validar com PostgreSQL o cadastro, a edição do perfil, a troca de senha, a desativação, o currículo/PDF e a sincronização de vagas.
+- Validar com PostgreSQL o cadastro, a edição do perfil, a troca de senha, a desativação, o currículo/PDF, a gestão de vagas internas e a sincronização de vagas.
+- Concluir os ajustes de currículo combinados pelo time: tamanhos dos campos no model, telefone armazenado só com dígitos, modalidades sem `ARRAY(ENUM)` e situação `incompleto` no lugar de `trancado`. A implementação atual ainda usa telefone formatado, `ARRAY(ENUM)` e `trancado`; model, validação, PDF, Swagger e testes devem ser atualizados em conjunto.
 - Implementar o agendamento da sincronização, caso o time mantenha a rotina automática prevista no fluxo do sistema.
 - A exportação em PDF carrega o currículo com uma função própria (`carregarCurriculoCompleto`), parecida com a do `curriculo.service.js`. Dá para unificar depois.
 
@@ -191,9 +192,15 @@ npm run seed          # cria o primeiro admin a partir de ADMIN_EMAIL e ADMIN_SE
 npm test
 ```
 
-Cobrem extração e normalização de vagas, regras de match, schemas de validação (vagas e currículo), serialização do currículo, geração do PDF, middlewares de validação e configuração de CORS. Não precisam de banco.
+Cobrem extração e normalização de vagas, regras de match, schemas de validação (vagas e currículo), serialização do currículo, geração do PDF, middlewares de validação, CORS e gestão administrativa de vagas. Os testes de admin verificam autenticação/autorização, operações de criação/edição/exclusão, visibilidade e documentação Swagger, com acessos ao banco simulados.
 
-Na revisão desta branch, foram executados **133 testes, todos aprovados**, usando Node.js 24. A suíte inclui seis testes novos de validação e CORS; ela não substitui os testes de integração dos controllers e services com PostgreSQL.
+Na revisão desta branch, foram executados **164 testes, todos aprovados**. A suíte não exige PostgreSQL e não substitui a validação integrada com banco real.
+
+Para executar a partir da raiz do repositório:
+
+```bash
+npm test --prefix backend
+```
 
 ### Execução
 
@@ -240,10 +247,31 @@ Senha atual incorreta retorna `400`. Ao desativar a conta, o token passa a retor
 | `PATCH` | `/admin/usuarios/:id/desativar`  | Desativa um usuário (não vale para a própria conta) |
 | `PATCH` | `/admin/usuarios/:id/reativar`   | Reativa um usuário                                 |
 | `POST`  | `/admin/vagas/sincronizar`       | Importa e atualiza as vagas das fontes configuradas no GitHub |
+| `GET`   | `/admin/vagas` | Lista vagas, incluindo ocultas e inativas, com filtros e paginação |
+| `POST`  | `/admin/vagas` | Cria uma vaga interna; retorna `201` com a vaga |
+| `PUT`   | `/admin/vagas/:id` | Substitui os campos editáveis de uma vaga interna; retorna `200` com a vaga |
+| `DELETE` | `/admin/vagas/:id` | Exclui uma vaga interna; retorna `204`, sem corpo |
+| `PATCH` | `/admin/vagas/:id/ocultar` | Oculta uma vaga interna ou do GitHub |
+| `PATCH` | `/admin/vagas/:id/reexibir` | Reexibe uma vaga interna ou do GitHub |
 
 A sincronização cria ou atualiza vagas abertas e inativa as que foram fechadas. Preserva vagas ocultadas pelo admin e não inativa as de uma fonte quando a consulta dessa fonte falha. A resposta traz os totais e os erros por fonte; confira o resumo, mesmo com resposta `200`. Outra sincronização em andamento retorna `409`.
 
 A execução é manual pela rota administrativa; não há agendamento automático implementado.
+
+#### Vagas internas
+
+O corpo de `POST` e `PUT /admin/vagas` exige `titulo`, `empresa`, `link`, `nivel`, `modalidade`, `stack` e `skills`. Descrição, contratação, cidade e UF são opcionais, respeitando as regras abaixo:
+
+- Os valores de nível, modalidade, contratação, stack e UF seguem `backend/src/constants/enums.js`.
+- `link` aceita somente HTTP(S). `skills` recebe de 1 a 30 IDs UUID de skills cadastradas, obtidos em `GET /skills?busca=`; IDs repetidos são unificados.
+- Vagas presenciais ou híbridas no Brasil exigem UF. Para vagas fora do Brasil, use `cidade: "Exterior"` e não envie UF.
+- O service define `origem: "interna"`, `publicadaEm` e `cidadeNormalizada`; `fonte` e `githubIssueId` ficam nulos. O body não controla IDs, origem, publicação ou visibilidade.
+- `PUT` substitui todos os campos editáveis e as skills; opcionais ausentes viram `null`. Publicação, origem e visibilidade são preservadas.
+- Criar e editar retornam o objeto `vaga` produzido pelo `obterVaga` do `vaga.service`, sem o envelope `{ vaga, match }`. As vagas internas usam a mesma tabela, busca, recomendações e cálculo de match das vagas do GitHub.
+- Editar ou excluir uma vaga do GitHub retorna `400`; ID inexistente retorna `404`. Use ocultar para retirar uma vaga do GitHub do portal.
+- Ocultar/reexibir retorna `{ id, oculta }` e não altera `ativa`. Vagas ocultas somem da busca e das recomendações; o detalhe do candidato retorna `404`. Reexibir uma vaga inativa não a reativa.
+
+`GET /admin/vagas` aceita `busca` (título ou empresa), `origem`, `ativa`, `oculta`, `pagina` (padrão 1) e `limite` (padrão 20, máximo 50). Os filtros booleanos aceitam `true` ou `false`. A resposta é `{ dados, paginacao }`; sem filtros, inclui vagas ocultas e inativas.
 
 ### Skills (requer autenticação)
 
