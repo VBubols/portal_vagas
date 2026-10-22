@@ -2,7 +2,7 @@
 
 Portal agregador de vagas de tecnologia, no estilo Indeed, focado em quem está começando a carreira. O candidato preenche o currículo uma única vez, recebe vagas ordenadas por compatibilidade com o seu perfil, vê quais requisitos atende e quais faltam, e exporta o currículo em PDF compatível com ATS.
 
-> **Status:** backend em desenvolvimento. Estão implementados autenticação, gestão de conta, administração de usuários, skills, **CRUD do currículo**, exportação em PDF, busca/recomendação de vagas com match, sincronização de vagas do GitHub, gestão administrativa de vagas internas e documentação Swagger. A validação integrada com PostgreSQL ainda está pendente nesta revisão. Falta o frontend (ver [Status e roadmap](#status-e-roadmap)).
+> **Status:** MVP implementado, com backend e frontend. O fluxo completo foi testado com PostgreSQL pelo navegador, no computador e no celular. A publicação usa Supabase e Vercel: veja o [passo a passo do deploy](./docs/deploy.md) e o [Status e roadmap](#status-e-roadmap).
 
 ## Problema
 
@@ -14,6 +14,30 @@ Pessoas em início de carreira em tecnologia têm dificuldade para encontrar vag
 - **Currículo estruturado**, preenchido uma vez e reaproveitado em qualquer candidatura.
 - **Match por compatibilidade**: vagas ordenadas pela % de skills que o candidato atende.
 - **Exportação em PDF compatível com ATS**, gerado a partir dos dados do formulário.
+
+## Telas
+
+Prints com dados fictícios.
+
+**Vagas recomendadas:** ordenadas pela compatibilidade com o currículo, com busca e filtros.
+
+![Vagas recomendadas](./docs/prints/vagas.png)
+
+**Detalhe da vaga:** a % de compatibilidade, os critérios que o currículo atende e as skills que faltam.
+
+![Detalhe da vaga com o painel de compatibilidade](./docs/prints/vaga-detalhe.png)
+
+**Currículo:** formulário preenchido uma vez, que alimenta as recomendações e gera o PDF compatível com ATS.
+
+![Formulário do currículo](./docs/prints/curriculo.png)
+
+**Administração:** sincronização com o GitHub, vagas internas, vagas ocultas e contas de usuário.
+
+![Tela de administração](./docs/prints/admin.png)
+
+**No celular:**
+
+<img src="./docs/prints/celular.png" alt="Lista de vagas no celular" width="320">
 
 ## Perfis de acesso
 
@@ -72,16 +96,17 @@ Detalhes em [mvp/mvp.md](./mvp/mvp.md) e diagramas dos fluxos em [mvp/user-flows
 | Exportação do currículo em PDF | Implementado | `GET /curriculo/pdf`, compatível com ATS |
 | Vagas: busca, recomendação e detalhe | Implementado | Filtros, paginação e match por compatibilidade |
 | Documentação da API | Implementado | Swagger em `/docs`, com todas as rotas documentadas |
-| Integração com o GitHub | Implementado | Sincronização manual por `POST /admin/vagas/sincronizar`, com criação, atualização e inativação de vagas. Validação integrada pendente; agendamento ainda não implementado |
+| Integração com o GitHub | Implementado | Sincronização manual por `POST /admin/vagas/sincronizar`, com criação, atualização e inativação de vagas. Agendamento ainda não implementado |
 | Admin: gestão de vagas | Implementado | Listar vagas, cadastrar, editar e remover vagas internas, além de ocultar e reexibir vagas de qualquer origem |
-| Frontend | Ausente neste repositório | O CORS já está preparado para o Vite em `localhost:5173` |
+| Frontend | Implementado | React, Vite e MUI: cadastro, login, vagas recomendadas e busca, detalhe com match, currículo com PDF e administração. Funciona no celular |
+| Deploy | Preparado | API e front na Vercel, banco no Supabase. Passo a passo em [docs/deploy.md](./docs/deploy.md) |
 
-“Implementado” indica código presente; não significa validação de ponta a ponta com PostgreSQL. Na revisão desta branch, os 164 testes automatizados passaram sem conexão com PostgreSQL; os acessos ao banco nos testes de admin são simulados.
+Além dos 164 testes automatizados do backend, que rodam sem banco, o fluxo completo foi testado de ponta a ponta com PostgreSQL pelo navegador: cadastro, login, currículo e PDF, busca e recomendações, detalhe da vaga, sincronização (com o GitHub simulado), vagas internas e administração de usuários.
 
 Pendências técnicas conhecidas:
 
 - O `sequelize.sync()` cria as tabelas que faltam, mas **não altera** tabelas existentes. Não há migrations: mudou um model, é preciso recriar ou alterar a tabela à mão.
-- Validar com PostgreSQL o cadastro, a edição do perfil, a troca de senha, a desativação, o currículo/PDF, a gestão de vagas internas e a sincronização de vagas.
+- As rotas de editar o perfil, trocar a senha e desativar a própria conta existem, mas ainda não têm tela no front.
 - Concluir os ajustes de currículo combinados pelo time: tamanhos dos campos no model, telefone armazenado só com dígitos, modalidades sem `ARRAY(ENUM)` e situação `incompleto` no lugar de `trancado`. A implementação atual ainda usa telefone formatado, `ARRAY(ENUM)` e `trancado`; model, validação, PDF, Swagger e testes devem ser atualizados em conjunto.
 - Implementar o agendamento da sincronização, caso o time mantenha a rotina automática prevista no fluxo do sistema.
 - A exportação em PDF carrega o currículo com uma função própria (`carregarCurriculoCompleto`), parecida com a do `curriculo.service.js`. Dá para unificar depois.
@@ -101,6 +126,11 @@ Funcionalidades fora do MVP (empresas, importação de CV em PDF, match semânti
 | PDF            | PDFKit                              |
 | Documentação   | Swagger (OpenAPI 3) via `swagger-jsdoc` |
 | Testes         | `node:test` (runner nativo do Node) |
+| Frontend       | React 19 + Vite                     |
+| Interface      | MUI (Material UI)                   |
+| Rotas do front | React Router                        |
+| Descrição das vagas | `react-markdown`, com o HTML sanitizado |
+| Hospedagem     | Vercel (API e front) e Supabase (PostgreSQL) |
 
 ## Estrutura do projeto
 
@@ -109,9 +139,10 @@ portal_vagas/
 ├── backend/
 │   ├── .env.example
 │   ├── package.json
-│   ├── scripts/                # scripts manuais de apoio (GitHub e labels)
+│   ├── vercel.json             # região da função na Vercel (São Paulo)
+│   ├── scripts/                # scripts manuais de apoio (GitHub, labels e sincronização de vagas)
 │   ├── src/
-│   │   ├── app.js              # entrada da aplicação
+│   │   ├── app.js              # entrada da aplicação (exporta o app para a Vercel)
 │   │   ├── config/             # database, cors, helmet, rate limit, swagger, fontes e mapeamento de labels
 │   │   ├── constants/          # enums compartilhados (nível, modalidade, UF, grau...) e limites do currículo
 │   │   ├── controllers/        # auth, usuário, admin, skills, vagas, currículo e PDF
@@ -123,9 +154,25 @@ portal_vagas/
 │   │   ├── services/           # regras de negócio: auth, currículo, match, vagas, PDF e GitHub
 │   │   └── utils/              # cripto, CPF, normalização de texto, serializadores, LIKE seguro e paginação
 │   └── tests/                  # testes automatizados
+├── frontend/
+│   ├── .env.example
+│   ├── package.json
+│   ├── vercel.json             # rewrite das rotas do React Router
+│   ├── README.md               # detalhes do front: rotas, estrutura e convenções
+│   └── src/
+│       ├── api/                # cliente HTTP e chamadas por recurso
+│       ├── components/         # componentes compartilhados (card de vaga, campo de skills, markdown...)
+│       ├── contexts/           # sessão do usuário (AuthContext)
+│       ├── hooks/              # useAuth, useApi e useDebounce
+│       ├── pages/              # telas: login, cadastro, vagas, detalhe, currículo e admin
+│       └── utils/              # máscaras e formatação
+├── docs/
+│   ├── deploy.md               # passo a passo do deploy (Supabase + Vercel)
+│   └── prints/                 # prints usados neste README
 ├── mvp/
 │   ├── mvp.md                  # escopo do MVP
 │   └── user-flows.md           # fluxos em Mermaid
+├── .nvmrc                      # versão do Node (22)
 ├── LICENSE
 └── README.md
 ```
@@ -134,10 +181,10 @@ portal_vagas/
 
 ### Pré-requisitos
 
-- Node.js 22 ou superior
+- Node.js 22. O front usa Vite 8, que não roda no Node 18. Com o nvm, `nvm use` na raiz lê o `.nvmrc`.
 - PostgreSQL em execução, com um banco criado para a aplicação
 
-### Instalação
+### Backend
 
 ```bash
 git clone <url-do-repositorio>
@@ -152,12 +199,16 @@ Preencha o `.env`:
 
 | Variável            | Obrigatória | Descrição                                                                 |
 | ------------------- | ----------- | ------------------------------------------------------------------------- |
-| `PORT`              | Sim         | Porta da API                                                              |
-| `DB_HOST`           | Sim         | Host do PostgreSQL                                                        |
-| `DB_PORT`           | Sim         | Porta do PostgreSQL                                                       |
-| `DB_USER`           | Sim         | Usuário do banco                                                          |
-| `DB_PASSWORD`       | Sim         | Senha do banco                                                            |
-| `DB_NAME`           | Sim         | Nome do banco                                                             |
+| `PORT`              | Sim, fora da Vercel | Porta da API                                                      |
+| `DB_HOST`           | Sim, sem `DATABASE_URL` | Host do PostgreSQL                                            |
+| `DB_PORT`           | Sim, sem `DATABASE_URL` | Porta do PostgreSQL                                           |
+| `DB_USER`           | Sim, sem `DATABASE_URL` | Usuário do banco                                              |
+| `DB_PASSWORD`       | Sim, sem `DATABASE_URL` | Senha do banco                                                |
+| `DB_NAME`           | Sim, sem `DATABASE_URL` | Nome do banco                                                 |
+| `DATABASE_URL`      | Não         | String de conexão completa (Supabase). Quando existe, as `DB_*` são ignoradas e a conexão usa SSL |
+| `DB_SSL`            | Não         | `true` ou `false`. Troca o padrão do SSL: ligado com `DATABASE_URL`, desligado com as `DB_*` |
+| `CORS_ORIGINS`      | Não         | Endereços extras liberados no CORS, separados por vírgula (o front publicado) |
+| `LIMITE_REQUISICOES`, `LIMITE_CADASTROS`, `LIMITE_LOGIN_FALHAS` | Não | Limites de requisição (veja [Limites de requisição](#limites-de-requisição)) |
 | `JWT_SECRET`        | Sim         | Segredo usado para assinar os tokens                                      |
 | `JWT_EXPIRES_IN`    | Não         | Validade do token (padrão `1h`)                                           |
 | `CPF_CHAVE_CRIPTO`  | Sim         | Chave que cifra o CPF: 64 caracteres hexadecimais                         |
@@ -182,9 +233,12 @@ Execute duas vezes e use um resultado diferente para cada chave. Não versione o
 ### Carga inicial
 
 ```bash
-npm run seed:skills   # idempotente; cria as tabelas que faltarem e as skills ainda não cadastradas
-npm run seed          # cria o primeiro admin a partir de ADMIN_EMAIL e ADMIN_SENHA (idempotente)
+npm run seed:skills         # idempotente; cria todas as tabelas que faltarem e as skills ainda não cadastradas
+npm run seed                # cria o primeiro admin a partir de ADMIN_EMAIL e ADMIN_SENHA (idempotente)
+npm run vagas:sincronizar   # opcional: importa as vagas do GitHub pelo terminal
 ```
+
+As vagas também podem ser importadas pela tela de admin, no botão **Sincronizar agora**. Se o e-mail do admin já tiver uma conta, o seed só promove essa conta a admin e mantém a senha dela.
 
 ### Testes
 
@@ -209,11 +263,28 @@ npm run dev     # desenvolvimento, com nodemon
 npm start       # produção
 ```
 
-Ao subir, a API roda `sequelize.sync()` e cria as tabelas que ainda não existem. Ele não altera tabelas já criadas (veja as [pendências técnicas](#status-e-roadmap)).
+Ao subir, a API roda `sequelize.sync()` e cria as tabelas que ainda não existem. Ele não altera tabelas já criadas (veja as [pendências técnicas](#status-e-roadmap)). Na Vercel o `sync()` não roda: as tabelas são criadas uma vez pelo `seed:skills`.
+
+### Frontend
+
+Com a API no ar:
+
+```bash
+cd portal_vagas/frontend
+npm install
+cp .env.example .env   # VITE_API_URL=http://localhost:3000
+npm run dev            # http://localhost:5173
+```
+
+`npm run lint` e `npm run build` precisam passar antes de abrir um PR. Rotas, estrutura e convenções do front estão em [frontend/README.md](./frontend/README.md).
+
+## Deploy
+
+A API e o front ficam em dois projetos da Vercel, a partir do mesmo repositório, e o banco fica no Supabase. O passo a passo completo, com as variáveis de ambiente e os problemas comuns, está em [docs/deploy.md](./docs/deploy.md).
 
 ## API
 
-Requisições autenticadas usam o header `Authorization: Bearer <token>`. O CORS aceita `http://localhost:5173`, `http://127.0.0.1:5173` e `http://localhost:3000`, além de requisições sem `Origin` (como curl e Postman). O header `Content-Disposition` é exposto para o frontend consultar o nome do PDF.
+Requisições autenticadas usam o header `Authorization: Bearer <token>`. O CORS aceita `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000` e os endereços de `CORS_ORIGINS`, além de requisições sem `Origin` (como curl e Postman). O header `Content-Disposition` é exposto para o frontend consultar o nome do PDF.
 
 ### Autenticação
 
@@ -366,7 +437,15 @@ Cada pessoa documenta as próprias rotas: escreva um bloco `@openapi` em YAML lo
 
 ### Limites de requisição
 
-Janela de 15 minutos por IP: 100 requisições no total, 10 no cadastro e 3 tentativas de login que falham (logins bem-sucedidos não contam).
+Janela de 15 minutos por IP. Os padrões aguentam uma sala inteira saindo pelo mesmo IP, e cada limite pode ser trocado por variável de ambiente:
+
+| Limite | Padrão | Variável |
+| --- | --- | --- |
+| Requisições no total | 1000 | `LIMITE_REQUISICOES` |
+| Cadastros | 30 | `LIMITE_CADASTROS` |
+| Logins que falham, por IP e e-mail | 3 | `LIMITE_LOGIN_FALHAS` |
+
+Logins bem-sucedidos não contam. Como o limite de login conta por IP e e-mail, quem erra a própria senha não bloqueia os colegas da mesma rede. Na Vercel, a API usa o IP real de cada usuário (`trust proxy`).
 
 ## Licença
 
