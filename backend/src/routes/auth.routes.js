@@ -83,8 +83,8 @@ authRouter.post('/cadastro', limitadorUsuario, validar(cadastroSchema), cadastra
  *       O token (JWT, HS256) vale por 1 hora, salvo configuração diferente do servidor, e deve ir
  *       no header `Authorization: Bearer <token>`. E-mail inexistente e senha errada dão a
  *       mesma resposta `401`, de propósito. O `403` de conta desativada só aparece depois que
- *       a senha foi conferida. Só as tentativas que falham contam no limite: 3 por IP a cada
- *       15 minutos.
+ *       a senha foi conferida. Só as tentativas que falham contam no limite: 3 por e-mail e IP
+ *       a cada 15 minutos.
  *     security: []
  *     requestBody:
  *       required: true
