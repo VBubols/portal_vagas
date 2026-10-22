@@ -2,7 +2,7 @@
 
 Portal agregador de vagas de tecnologia, no estilo Indeed, focado em quem está começando a carreira. O candidato preenche o currículo uma única vez, recebe vagas ordenadas por compatibilidade com o seu perfil, vê quais requisitos atende e quais faltam, e exporta o currículo em PDF compatível com ATS.
 
-> **Status:** backend em desenvolvimento. Já funcionam autenticação, gestão de conta, administração de usuários, skills, **CRUD do currículo**, exportação em PDF, busca/recomendação de vagas com match e a documentação Swagger. Ainda falta a rotina que importa as vagas do GitHub para o banco, a gestão de vagas pelo admin e o frontend (ver [Status e roadmap](#status-e-roadmap)).
+> **Status:** backend em desenvolvimento. Estão implementados autenticação, gestão de conta, administração de usuários, skills, **CRUD do currículo**, exportação em PDF, busca/recomendação de vagas com match, sincronização de vagas do GitHub e documentação Swagger. A validação integrada com PostgreSQL ainda está pendente nesta revisão. Faltam a gestão de vagas pelo admin e o frontend (ver [Status e roadmap](#status-e-roadmap)).
 
 ## Problema
 
@@ -26,7 +26,7 @@ Pessoas em início de carreira em tecnologia têm dificuldade para encontrar vag
 
 ### Vagas
 
-- **Fontes:** issues dos repositórios `frontendbr/vagas` e `backend-br/vagas`, importadas pela API REST do GitHub, ampliadas com os repositórios por stack e região. Somar fontes compensa o baixo volume de vagas júnior em cada repositório.
+- **Fontes:** issues dos repositórios `frontendbr/vagas` e `backend-br/vagas`, importadas pela API REST do GitHub, com possibilidade de ampliar as fontes por stack e região em `backend/src/config/fontesVagas.js`. Atualmente, apenas esses dois repositórios estão configurados.
 - **Mapeamento de labels:** uma tabela por fonte traduz as labels de cada repositório ("Júnior", "Junior", "Jr") para valores padronizados de nível, tipo de contratação, modalidade e stack.
 - **Modelo híbrido:** uma única tabela de vagas com campo de origem (`github` ou `interna`) e link de candidatura, para que empresas entrem no futuro sem retrabalho.
 - **Skills da vaga:** identificadas pelas labels do GitHub e pela busca, no texto da descrição, das skills cadastradas.
@@ -51,27 +51,38 @@ Pessoas em início de carreira em tecnologia têm dificuldade para encontrar vag
 - Gerencia usuários (listar, desativar, reativar).
 - Cadastra, edita e remove vagas internas, e oculta vagas importadas do GitHub (que não são editáveis, pois a sincronização sobrescreveria a edição).
 
+### Segurança
+
+- Autenticação com JWT e senhas protegidas com bcrypt.
+- Autorização por papel (`admin` e `usuario`).
+- Validação de entradas com Zod e tratamento centralizado de erros.
+- Helmet, CORS e limites de requisição.
+- CPF cifrado com AES-256-GCM e hash determinístico para unicidade.
+
 Detalhes em [mvp/mvp.md](./mvp/mvp.md) e diagramas dos fluxos em [mvp/user-flows.md](./mvp/user-flows.md).
 
 ## Status e roadmap
 
 | Área | Situação | Detalhe |
 | --- | --- | --- |
-| Autenticação e conta | Pronto | Cadastro, login (JWT), perfil, troca de senha e desativação. CPF salvo cifrado (AES-256-GCM) e com hash para unicidade |
-| Administração de usuários | Pronto | Listar, desativar e reativar (perfil `admin`) |
-| Skills | Pronto | Tabela única, seed inicial e autocomplete |
-| **Currículo (CRUD)** | **Pronto** | `POST`, `GET` e `PUT /curriculo`, com validação Zod e gravação em transação |
-| Exportação do currículo em PDF | Pronto | `GET /curriculo/pdf`, compatível com ATS |
-| Vagas: busca, recomendação e detalhe | Pronto | Filtros, paginação e match por compatibilidade |
-| Documentação da API | Pronto | Swagger em `/docs`, com todas as rotas documentadas |
-| Integração com o GitHub | Parcial | Leitura das issues e mapeamento de labels prontos e validados por script. **Falta a rotina de sincronização que grava as vagas no banco**: hoje nada cria registros em `vaga`, então as rotas de vagas devolvem listas vazias até essa etapa existir |
+| Autenticação e conta | Implementado | Cadastro, login (JWT), perfil, troca de senha e desativação. CPF salvo cifrado (AES-256-GCM) e com hash para unicidade |
+| Administração de usuários | Implementado | Listar, desativar e reativar (perfil `admin`) |
+| Skills | Implementado | Tabela única, seed inicial e autocomplete |
+| **Currículo (CRUD)** | **Implementado** | `POST`, `GET` e `PUT /curriculo`, com validação Zod e gravação em transação |
+| Exportação do currículo em PDF | Implementado | `GET /curriculo/pdf`, compatível com ATS |
+| Vagas: busca, recomendação e detalhe | Implementado | Filtros, paginação e match por compatibilidade |
+| Documentação da API | Implementado | Swagger em `/docs`, com todas as rotas documentadas |
+| Integração com o GitHub | Implementado | Sincronização manual por `POST /admin/vagas/sincronizar`, com criação, atualização e inativação de vagas. Validação integrada pendente; agendamento ainda não implementado |
 | Admin: gestão de vagas | Pendente | Cadastrar, editar e remover vagas internas e ocultar vagas importadas |
-| Frontend | Fora deste repositório | O CORS já está preparado para o Vite em `localhost:5173` |
+| Frontend | Ausente neste repositório | O CORS já está preparado para o Vite em `localhost:5173` |
+
+“Implementado” indica código presente; não significa validação de ponta a ponta com PostgreSQL. Na revisão desta branch, os 133 testes automatizados passaram sem banco.
 
 Pendências técnicas conhecidas:
 
 - O `sequelize.sync()` cria as tabelas que faltam, mas **não altera** tabelas existentes. Não há migrations: mudou um model, é preciso recriar ou alterar a tabela à mão.
-- `usuario.controller.js` ainda não usa `usuario.service.js` (que já tem a validação de e-mail/CPF repetidos e a serialização com CPF mascarado). Hoje `POST /usuario/perfil` persiste só `nome` e `email`.
+- Validar com PostgreSQL o cadastro, a edição do perfil, a troca de senha, a desativação, o currículo/PDF e a sincronização de vagas.
+- Implementar o agendamento da sincronização, caso o time mantenha a rotina automática prevista no fluxo do sistema.
 - A exportação em PDF carrega o currículo com uma função própria (`carregarCurriculoCompleto`), parecida com a do `curriculo.service.js`. Dá para unificar depois.
 
 Funcionalidades fora do MVP (empresas, importação de CV em PDF, match semântico etc.) estão em [mvp/mvp.md](./mvp/mvp.md).
@@ -122,7 +133,7 @@ portal_vagas/
 
 ### Pré-requisitos
 
-- Node.js 20 ou superior
+- Node.js 22 ou superior
 - PostgreSQL em execução, com um banco criado para a aplicação
 
 ### Instalação
@@ -133,6 +144,8 @@ cd portal_vagas/backend
 npm install
 cp .env.example .env
 ```
+
+No PowerShell, use `Copy-Item .env.example .env` para copiar o arquivo.
 
 Preencha o `.env`:
 
@@ -157,6 +170,14 @@ A API não sobe se alguma variável obrigatória estiver ausente ou se as chaves
 openssl rand -hex 32
 ```
 
+Também é possível gerar pelo Node.js, inclusive no PowerShell:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Execute duas vezes e use um resultado diferente para cada chave. Não versione o `.env`.
+
 ### Carga inicial
 
 ```bash
@@ -170,7 +191,9 @@ npm run seed          # cria o primeiro admin a partir de ADMIN_EMAIL e ADMIN_SE
 npm test
 ```
 
-Cobrem as regras de match, os schemas de validação (vagas e currículo), o serializador do currículo e a geração do PDF. Não precisam de banco.
+Cobrem extração e normalização de vagas, regras de match, schemas de validação (vagas e currículo), serialização do currículo, geração do PDF, middlewares de validação e configuração de CORS. Não precisam de banco.
+
+Na revisão desta branch, foram executados **133 testes, todos aprovados**, usando Node.js 24. A suíte inclui seis testes novos de validação e CORS; ela não substitui os testes de integração dos controllers e services com PostgreSQL.
 
 ### Execução
 
@@ -183,7 +206,7 @@ Ao subir, a API roda `sequelize.sync()` e cria as tabelas que ainda não existem
 
 ## API
 
-Requisições autenticadas usam o header `Authorization: Bearer <token>`. O CORS aceita as origens `localhost:5173` (frontend em Vite) e `localhost:3000`.
+Requisições autenticadas usam o header `Authorization: Bearer <token>`. O CORS aceita `http://localhost:5173`, `http://127.0.0.1:5173` e `http://localhost:3000`, além de requisições sem `Origin` (como curl e Postman). O header `Content-Disposition` é exposto para o frontend consultar o nome do PDF.
 
 ### Autenticação
 
@@ -192,16 +215,22 @@ Requisições autenticadas usam o header `Authorization: Bearer <token>`. O CORS
 | `POST` | `/auth/cadastro` | Cria uma conta (`nome`, `sobrenome`, `email`, `senha`, `cpf`, `telefoneCelular`, `dataNascimento`, `paisOrigem`; `telefoneFixo` é opcional) |
 | `POST` | `/auth/login`    | Retorna o token JWT e o usuário (`email`, `senha`)                                              |
 
-Os erros de validação de corpo respondem `400` com `{ mensagem, detalhes: [{ campo, mensagem }] }`.
+Os erros de validação de corpo, query string e parâmetros de rota respondem `400` com `{ mensagem, detalhes: [{ campo, mensagem }] }`.
 
 ### Usuário (requer autenticação)
 
 | Método   | Rota              | Descrição                                  |
 | -------- | ----------------- | ------------------------------------------ |
-| `GET`    | `/usuario/perfil` | Retorna os dados do usuário logado         |
-| `POST`   | `/usuario/perfil` | Atualiza `nome` e/ou `email`               |
-| `POST`   | `/usuario/senha`  | Troca a senha (`senhaAntiga`, `novaSenha`) |
+| `GET`    | `/usuario/perfil` | Retorna os dados do usuário logado, com CPF completo e sem campos internos de armazenamento |
+| `PATCH`  | `/usuario/perfil` | Atualiza nome, sobrenome, e-mail, CPF, telefones, data de nascimento e país de origem |
+| `PATCH`  | `/usuario/senha`  | Troca a senha (`senhaAntiga`, `novaSenha`) |
 | `DELETE` | `/usuario/conta`  | Desativa a conta (exclusão lógica)         |
+
+A atualização do perfil é parcial: envie ao menos um campo. Os campos obrigatórios do cadastro não aceitam valor vazio; somente `telefoneFixo` pode ser apagado, enviando `null` ou texto vazio. E-mail ou CPF de outra conta retornam `409`. As respostas de perfil não expõem senha, `cpfCriptografado` ou `cpfHash`.
+
+Senha atual incorreta retorna `400`. Ao desativar a conta, o token passa a retornar `401` nas rotas protegidas e novas tentativas de login retornam `403`.
+
+**Mudança de contrato nesta branch:** atualização de perfil e senha usa `PATCH`; as antigas chamadas com `POST` precisam ser atualizadas.
 
 ### Admin (requer autenticação e perfil `admin`)
 
@@ -210,6 +239,11 @@ Os erros de validação de corpo respondem `400` com `{ mensagem, detalhes: [{ c
 | `GET`   | `/admin/usuarios`                | Lista usuários (`pagina`, `limite`, `busca`)       |
 | `PATCH` | `/admin/usuarios/:id/desativar`  | Desativa um usuário (não vale para a própria conta) |
 | `PATCH` | `/admin/usuarios/:id/reativar`   | Reativa um usuário                                 |
+| `POST`  | `/admin/vagas/sincronizar`       | Importa e atualiza as vagas das fontes configuradas no GitHub |
+
+A sincronização cria ou atualiza vagas abertas e inativa as que foram fechadas. Preserva vagas ocultadas pelo admin e não inativa as de uma fonte quando a consulta dessa fonte falha. A resposta traz os totais e os erros por fonte; confira o resumo, mesmo com resposta `200`. Outra sincronização em andamento retorna `409`.
+
+A execução é manual pela rota administrativa; não há agendamento automático implementado.
 
 ### Skills (requer autenticação)
 

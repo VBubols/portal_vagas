@@ -156,7 +156,7 @@ const definition = {
     description:
       'API do portal agregador de vagas de tecnologia. ' +
       'Rotas autenticadas exigem o header `Authorization: Bearer <token>` (obtido em `/auth/login`). ' +
-      'Erros de validação de corpo respondem `400` com `{ mensagem, detalhes: [{ campo, mensagem }] }`. ' +
+      'Erros de validação (corpo, query string e parâmetros) respondem `400` com `{ mensagem, detalhes: [{ campo, mensagem }] }`. ' +
       'Todas as rotas têm limite de 100 requisições por IP a cada 15 minutos (`429`); cadastro e login têm limites próprios, descritos em cada rota.',
   },
   servers: [{ url: '/', description: 'Servidor atual' }],
@@ -199,9 +199,10 @@ const definition = {
       },
       ErroValidacao: {
         type: 'object',
+        description: 'Mesmo formato de `ErroDados`, usado nas rotas validadas por query string e parâmetros.',
         properties: {
           mensagem: { type: 'string', example: 'Parâmetros inválidos' },
-          erros: {
+          detalhes: {
             type: 'array',
             items: {
               type: 'object',
@@ -236,13 +237,11 @@ const definition = {
       PerfilDoUsuario: {
         type: 'object',
         description:
-          'Resposta de `GET` e `POST /usuario/perfil`. Hoje ela difere do `Usuario` das outras rotas: ' +
-          'traz o CPF completo (só dígitos) e dois campos internos do armazenamento do CPF.',
+          'Resposta de `GET` e `PATCH /usuario/perfil`: mesmo formato de `Usuario`, mas com o CPF ' +
+          'completo (só dígitos), já que quem consulta é o próprio dono.',
         properties: {
           ...propriedadesUsuario,
           cpf: nulo(texto({ example: '52998224725', description: 'CPF completo, só dígitos (nas demais rotas ele vem mascarado)' })),
-          cpfCriptografado: nulo(texto({ description: 'Campo interno (CPF cifrado). Não dependa dele.' })),
-          cpfHash: nulo(texto({ description: 'Campo interno (hash do CPF). Não dependa dele.' })),
         },
       },
       ListaDeUsuarios: {
