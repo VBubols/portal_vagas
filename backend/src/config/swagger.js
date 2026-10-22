@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import swaggerJsdoc from 'swagger-jsdoc';
 import {
-  NIVEIS, MODALIDADES, UFS, CONTRATACOES, ORIGENS_VAGA,
+  NIVEIS, MODALIDADES, UFS, CONTRATACOES, ORIGENS_VAGA, STACKS,
   GRAUS, SITUACOES_FORMACAO, NIVEIS_IDIOMA, TIPOS_LINK,
 } from '../constants/enums.js';
 import { LIMITES_CURRICULO as L } from '../constants/curriculo.limites.js';
@@ -156,7 +156,7 @@ const definition = {
     description:
       'API do portal agregador de vagas de tecnologia. ' +
       'Rotas autenticadas exigem o header `Authorization: Bearer <token>` (obtido em `/auth/login`). ' +
-      'Erros de validação de corpo respondem `400` com `{ mensagem, detalhes: [{ campo, mensagem }] }`. ' +
+      'Erros de validação (corpo, query string e parâmetros) respondem `400` com `{ mensagem, detalhes: [{ campo, mensagem }] }`. ' +
       'Todas as rotas têm limite de 100 requisições por IP a cada 15 minutos (`429`); cadastro e login têm limites próprios, descritos em cada rota.',
   },
   servers: [{ url: '/', description: 'Servidor atual' }],
@@ -199,9 +199,10 @@ const definition = {
       },
       ErroValidacao: {
         type: 'object',
+        description: 'Mesmo formato de `ErroDados`, usado nas rotas validadas por query string e parâmetros.',
         properties: {
           mensagem: { type: 'string', example: 'Parâmetros inválidos' },
-          erros: {
+          detalhes: {
             type: 'array',
             items: {
               type: 'object',
@@ -236,13 +237,11 @@ const definition = {
       PerfilDoUsuario: {
         type: 'object',
         description:
-          'Resposta de `GET` e `POST /usuario/perfil`. Hoje ela difere do `Usuario` das outras rotas: ' +
-          'traz o CPF completo (só dígitos) e dois campos internos do armazenamento do CPF.',
+          'Resposta de `GET` e `PATCH /usuario/perfil`: mesmo formato de `Usuario`, mas com o CPF ' +
+          'completo (só dígitos), já que quem consulta é o próprio dono.',
         properties: {
           ...propriedadesUsuario,
           cpf: nulo(texto({ example: '52998224725', description: 'CPF completo, só dígitos (nas demais rotas ele vem mascarado)' })),
-          cpfCriptografado: nulo(texto({ description: 'Campo interno (CPF cifrado). Não dependa dele.' })),
-          cpfHash: nulo(texto({ description: 'Campo interno (hash do CPF). Não dependa dele.' })),
         },
       },
       ListaDeUsuarios: {
@@ -345,6 +344,43 @@ const definition = {
           },
         },
       },
+      VagaInternaEntrada: {
+        type: 'object',
+        required: ['titulo', 'empresa', 'link', 'nivel', 'modalidade', 'stack', 'skills'],
+        description: 'POST e PUT usam o mesmo corpo. PUT substitui todos os campos editáveis; opcionais ausentes viram null. Origem, publicação, fonte, ids e visibilidade não são aceitos do cliente. Fora do Brasil, use cidade Exterior sem UF; presencial/híbrida no Brasil exige UF.',
+        properties: {
+          titulo: { type: 'string', minLength: 3, maxLength: 255 },
+          empresa: { type: 'string', minLength: 2, maxLength: 255 },
+          descricao: { type: 'string', maxLength: 10000 },
+          link: { type: 'string', format: 'uri', maxLength: 255, description: 'Somente http:// ou https://' },
+          nivel: { type: 'string', enum: NIVEIS },
+          modalidade: { type: 'string', enum: MODALIDADES },
+          contratacao: { type: 'string', enum: CONTRATACOES },
+          stack: { type: 'string', enum: STACKS },
+          cidade: { type: 'string', maxLength: 100, example: 'Palhoça' },
+          uf: { type: 'string', enum: UFS },
+          skills: { type: 'array', minItems: 1, maxItems: 30, items: { type: 'string', format: 'uuid' }, description: 'IDs de skills cadastradas; repetidos são unificados' },
+        },
+      },
+      ListaDeVagasAdmin: {
+        type: 'object',
+        properties: {
+          dados: {
+            type: 'array',
+            items: {
+              allOf: [
+                { $ref: '#/components/schemas/DetalheDaVaga/properties/vaga' },
+                { type: 'object', properties: { ativa: { type: 'boolean' }, oculta: { type: 'boolean' } } },
+              ],
+            },
+          },
+          paginacao: { $ref: '#/components/schemas/Paginacao' },
+        },
+      },
+      OcultacaoDeVaga: {
+        type: 'object',
+        properties: { id: { type: 'string', format: 'uuid' }, oculta: { type: 'boolean' } },
+      },
       CurriculoEntrada: {
         type: 'object',
         required: ['nomeCompleto', 'titulo', 'emailContato', 'telefone', 'resumo', 'nivel', 'modalidades', 'cidade', 'uf'],
@@ -385,6 +421,5 @@ const definition = {
 
 export const swaggerSpec = swaggerJsdoc({
   definition,
-  // caminho absoluto: funciona não importa de qual pasta o servidor foi iniciado
-  apis: [path.join(raiz, '../routes/*.js')],
+  apis: [path.join(raiz, '../routes/*.js').replaceAll('\\', '/')],
 });

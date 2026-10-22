@@ -1,90 +1,23 @@
-import Usuario from '../models/usuario.model.js';
-import bcrypt from 'bcryptjs';
-import { Op } from 'sequelize';
+import * as usuarioService from '../services/usuario.service.js';
+
+// No Express 5, erros lançados em handlers async já chegam ao middleware de
+// erros, então não há try/catch aqui. Toda a regra de negócio (e-mail e CPF
+// repetidos, hash da senha, serialização com CPF) fica em usuario.service.js.
 
 export async function perfil(req, res) {
-    try {
-        const perfil = await Usuario.findByPk(req.usuario.id, { attributes: { exclude: ['senha'] } });
-        return res.status(200).json(perfil);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ mensagem: 'Erro interno do servidor' }); 
-    }
-};
+    return res.status(200).json(await usuarioService.obterPerfil(req.usuario.id));
+}
 
 export async function atualizarPerfil(req, res) {
-    try {
-        const user = await Usuario.findByPk(req.usuario.id);
-        if (!user) {
-            return res.status(404).json({ mensagem: 'Usuário não encontrado' });
-        }
-
-        const { nome, email } = req.body;
-        const updateData = {};
-        
-        if(email){
-            const existing = await Usuario.findOne({
-                where: {
-                    email: email,
-                    id: { [Op.ne]: user.id }
-                }
-            });
-            if (existing) {
-                return res.status(409).json({ mensagem: 'Email já cadastrado' });
-            } else{
-                updateData.email = email;
-            }
-        };
-
-        if(nome){updateData.nome = nome};
-
-        await user.update(updateData);
-
-        const userResponse = user.toJSON();
-        delete userResponse.senha;
-
-        return res.status(200).json(userResponse);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ mensagem: 'Erro interno do servidor' });
-    }
-};
+    return res.status(200).json(await usuarioService.atualizarPerfil(req.usuario.id, req.body));
+}
 
 export async function atualizarSenha(req, res) {
-    try {
-        const { senhaAntiga, novaSenha } = req.body;
-        const user = await Usuario.findByPk(req.usuario.id);
-        if (!user) {
-            return res.status(404).json({ mensagem: 'Usuário não encontrado' });
-        }
-        
-        const compararSenha = await bcrypt.compare(senhaAntiga, user.senha);
-
-        if(!compararSenha){
-            return res.status(401).json({mensagem: 'Credenciais inválidas!'});
-        };
-
-        const senhaHash = await bcrypt.hash(novaSenha, 10);
-        await user.update({senha: senhaHash});
-
-        return res.status(204).send();
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ mensagem: 'Erro interno do servidor' });
-    }
-};
+    await usuarioService.atualizarSenha(req.usuario.id, req.body);
+    return res.status(204).send();
+}
 
 export async function desativarConta(req, res) {
-    try {
-        const user = await Usuario.findByPk(req.usuario.id);
-        if (!user) {
-            return res.status(404).json({ mensagem: 'Usuário não encontrado' });
-        }
-
-        await user.update({ativo: false});
-        return res.status(204).send()
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ mensagem: 'Erro interno do servidor' });
-    }
-};
+    await usuarioService.desativarConta(req.usuario.id);
+    return res.status(204).send();
+}

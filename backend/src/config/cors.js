@@ -15,4 +15,7 @@ export const corsConfig = {
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  // Sem isso o navegador esconde o Content-Disposition de fetch/axios entre
+  // origens, e o front não consegue ler o nome do arquivo do PDF.
+  exposedHeaders: ['Content-Disposition'],
 };

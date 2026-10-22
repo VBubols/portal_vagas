@@ -15,9 +15,8 @@ userRouter.use(autenticar);
  *     tags: [Usuário]
  *     summary: Devolve os dados do usuário logado
  *     description: >
- *       Atenção: a resposta traz o `cpf` completo (só dígitos), e não mascarado como nas demais
- *       rotas, além dos campos internos `cpfCriptografado` e `cpfHash`, que não fazem parte
- *       do contrato. Não dependa deles.
+ *       Mesmo formato de `Usuario`, mas com o `cpf` completo (só dígitos), já que quem consulta
+ *       é o próprio dono. Os campos internos de armazenamento do CPF não são expostos.
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -36,15 +35,15 @@ userRouter.get('/perfil', perfil);
 /**
  * @openapi
  * /usuario/perfil:
- *   post:
+ *   patch:
  *     tags: [Usuário]
- *     summary: Atualiza o nome e/ou o e-mail do usuário logado
+ *     summary: Atualiza os dados do perfil do usuário logado
  *     description: >
- *       Atualização parcial: envie só o que quer mudar, mas ao menos um campo. Esta rota grava
- *       apenas `nome` e `email`. Sobrenome, CPF, telefones, data de nascimento e país passam
- *       pela validação, mas não são gravados: enviar só esses campos responde `200` sem
- *       alterar nada. Por isso eles não estão listados abaixo. O e-mail não pode pertencer
- *       a outra conta.
+ *       Atualização parcial: envie só o que quer mudar, mas ao menos um campo. Todos os campos
+ *       abaixo são gravados. Os obrigatórios do cadastro não aceitam valor vazio; só o
+ *       `telefoneFixo` pode ser apagado (envie `null` ou texto vazio). Telefones aceitam
+ *       máscara e `+55` e são guardados só com dígitos. O e-mail e o CPF não podem pertencer a
+ *       outra conta.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -55,7 +54,17 @@ userRouter.get('/perfil', perfil);
  *             type: object
  *             properties:
  *               nome: { type: string, minLength: 2, maxLength: 100, example: Maria Clara }
+ *               sobrenome: { type: string, minLength: 2, maxLength: 100, example: Silva }
  *               email: { type: string, format: email, example: maria@exemplo.com }
+ *               cpf: { type: string, example: '529.982.247-25', description: 'Com ou sem pontuação' }
+ *               telefoneCelular: { type: string, example: '(48) 99999-0000', description: 'DDD + 9 dígitos' }
+ *               telefoneFixo:
+ *                 type: string
+ *                 nullable: true
+ *                 example: '(48) 3333-4444'
+ *                 description: 'DDD + 8 dígitos. Envie null ou texto vazio para apagar'
+ *               dataNascimento: { type: string, format: date, example: '1995-05-10', description: 'Idade entre 14 e 120 anos' }
+ *               paisOrigem: { type: string, example: BR, description: 'Código ISO 3166-1 alpha-2' }
  *     responses:
  *       200:
  *         description: Dados do usuário já atualizados
@@ -73,19 +82,22 @@ userRouter.get('/perfil', perfil);
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Erro' }
  *       409:
- *         description: E-mail já cadastrado em outra conta
+ *         description: E-mail ou CPF já cadastrado em outra conta (a mensagem diz qual)
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Erro' }
  */
-userRouter.post('/perfil', validar(atualizarPerfilSchema), atualizarPerfil);
+userRouter.patch('/perfil', validar(atualizarPerfilSchema), atualizarPerfil);
 /**
  * @openapi
  * /usuario/senha:
- *   post:
+ *   patch:
  *     tags: [Usuário]
  *     summary: Troca a senha do usuário logado
- *     description: A senha antiga precisa estar correta. A nova deve ter de 6 a 72 caracteres.
+ *     description: >
+ *       A senha antiga precisa estar correta. A nova deve ter de 6 a 72 caracteres. Senha antiga
+ *       incorreta responde `400` (e não `401`, de propósito: o front pode tratar `401` como token
+ *       expirado e deslogar o usuário).
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -102,17 +114,17 @@ userRouter.post('/perfil', validar(atualizarPerfilSchema), atualizarPerfil);
  *       204:
  *         description: Senha alterada (sem corpo)
  *       400:
- *         description: Dados inválidos
+ *         description: Dados inválidos ou senha antiga incorreta (a mensagem diz qual)
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/ErroDados' }
  *       401:
- *         description: Token ausente, inválido ou expirado, ou senha antiga incorreta (a mensagem diz qual)
+ *         description: Token ausente, inválido ou expirado (inclui conta desativada)
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Erro' }
  */
-userRouter.post('/senha', validar(atualizarSenhaSchema), atualizarSenha);
+userRouter.patch('/senha', validar(atualizarSenhaSchema), atualizarSenha);
 /**
  * @openapi
  * /usuario/conta:
