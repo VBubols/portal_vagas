@@ -421,6 +421,5 @@ const definition = {
 
 export const swaggerSpec = swaggerJsdoc({
   definition,
-  // caminho absoluto: funciona não importa de qual pasta o servidor foi iniciado
-  apis: [path.join(raiz, '../routes/*.js')],
+  apis: [path.join(raiz, '../routes/*.js').replaceAll('\\', '/')],
 });
