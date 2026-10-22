@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import sequelize from '../config/database.js';
 import Skill from '../models/skill.model.js';
+// Registra todos os models: o sync() abaixo cria todas as tabelas, não só a de skills.
+// É assim que um banco novo (o do Supabase, por exemplo) recebe as tabelas.
+import '../models/index.js';
 import { normalizarTexto } from '../utils/texto.js';
 
 // [nome canônico, [aliases]]
