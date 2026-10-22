@@ -130,6 +130,7 @@ export async function listarVagasAdmin({ busca, origem, ativa, oculta, pagina, l
       'oculta',
       'descricao',
       'link',
+      'createdAt'
     ],
     include: [
       { model: Skill, as: 'skills', attributes: ['id', 'nome'], through: { attributes: [] } },
