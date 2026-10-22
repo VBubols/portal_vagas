@@ -1,16 +1,56 @@
-# React + Vite
+# Portal de Vagas: frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite + MUI, consumindo a API do `backend/`.
 
-Currently, two official plugins are available:
+## Como rodar
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Suba o backend (`cd backend && npm run dev`). A API precisa estar no ar para o login funcionar.
+2. No `frontend/`:
+   ```bash
+   cp .env.example .env   # VITE_API_URL = endereço da API
+   npm install
+   npm run dev            # http://localhost:5173
+   ```
+3. Entre com o admin do seed (`ADMIN_EMAIL` e `ADMIN_SENHA` do `.env` do backend) ou cadastre um usuário.
 
-## React Compiler
+O CORS do backend já libera `http://localhost:5173`. Antes de abrir PR, rode `npm run lint` e `npm run build`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Estrutura
 
-## Expanding the ESLint configuration
+```
+src/
+├── api/            # uma função por rota da API. Telas nunca chamam fetch direto
+│   ├── client.js   # URL base, token, erros (ErroApi) e errosPorCampo()
+│   ├── auth.js  usuario.js  vagas.js  curriculo.js  skills.js  admin.js
+├── contexts/       # AuthProvider (sessão)
+├── hooks/          # useAuth()
+├── components/     # Layout, RotaProtegida, RotaAdmin, PaginaPendente
+├── constants/
+│   └── rotulo.js   # 'junior' -> 'Júnior'. Cópia dos enums do backend
+├── pages/          # uma tela por rota
+├── theme.js        # tema do MUI (cores e textos em pt-BR)
+├── App.jsx         # rotas
+└── main.jsx
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Rotas
+
+| Rota | Tela | Acesso |
+|---|---|---|
+| `/login`, `/cadastro` | Login e cadastro | Público |
+| `/vagas` | Lista com filtros e % de match | Logado |
+| `/vagas/:id` | Detalhe da vaga e match | Logado |
+| `/curriculo` | Formulário do currículo e PDF | Logado |
+| `/admin` | Sincronização, usuários e vagas internas | Admin |
+
+As telas ainda não feitas mostram o que precisam fazer (componente `PaginaPendente`).
+
+## Convenções
+
+- **Chamadas à API:** sempre pelas funções de `src/api/`. Se a rota ainda não tiver função, crie no arquivo do assunto usando o `http` do `client.js`.
+- **Erros:** toda função da API lança `ErroApi` com a `mensagem` do backend. Mostre num `<Alert severity="error">`. Em formulários, `errosPorCampo(erro)` devolve `{ campo: mensagem }` para o `helperText` de cada `TextField`.
+- **Sessão:** `const { usuario, ehAdmin, entrar, sair } = useAuth()`. Token expirado desloga sozinho.
+- **Valores da API:** a API devolve códigos (`junior`, `hibrido`). Para exibir, use `rotulo('niveis', vaga.nivel)`. Para selects, `opcoes('niveis')`.
+- **Componentes:** use os do MUI (`TextField`, `Select`, `Autocomplete`, `Card`, `Alert`...) e o `sx` para ajustes, sem CSS solto. No MUI 9, props do input vão em `slotProps`, não em `InputProps`.
+- **Descrição das vagas:** vem do GitHub em markdown com HTML. Nunca use `dangerouslySetInnerHTML` sem sanitizar.
+- **Login durante os testes:** o backend bloqueia após 3 senhas erradas em 15 minutos. Reiniciar o backend libera.
