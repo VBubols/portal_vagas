@@ -85,7 +85,11 @@ async function requisitar(rota, { metodo = 'GET', corpo, query, resposta = 'json
   }
 
   if (res.status === 204) return null;
-  if (resposta === 'blob') return res.blob();
+  if (resposta === 'blob') {
+    // attachment; filename="curriculo-ana-souza.pdf" (o backend expõe esse header no CORS)
+    const nomeArquivo = res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1];
+    return { blob: await res.blob(), nomeArquivo };
+  }
   return res.json();
 }
 
@@ -96,5 +100,6 @@ export const http = {
   put: (rota, corpo) => requisitar(rota, { metodo: 'PUT', corpo }),
   patch: (rota, corpo) => requisitar(rota, { metodo: 'PATCH', corpo }),
   delete: (rota) => requisitar(rota, { metodo: 'DELETE' }),
+  // Devolve { blob, nomeArquivo }
   baixar: (rota) => requisitar(rota, { resposta: 'blob' }),
 };
