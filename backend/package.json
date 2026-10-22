@@ -9,6 +9,7 @@
     "start": "node src/app.js",
     "seed": "node src/seeds/admin.seed.js",
     "seed:skills": "node src/seeds/skills.seed.js",
+    "vagas:sincronizar": "node scripts/sincronizar.vagas.js",
     "test": "node --test"
   },
   "keywords": [],
