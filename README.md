@@ -15,6 +15,13 @@ Pessoas em início de carreira em tecnologia têm dificuldade para encontrar vag
 - **Match por compatibilidade**: vagas ordenadas pela % de skills que o candidato atende.
 - **Exportação em PDF compatível com ATS**, gerado a partir dos dados do formulário.
 
+## Acesse o portal
+
+<p align="center">
+  <img src="./docs/prints/qrcode.svg" alt="QR Code do Portal de Vagas" width="200"><br>
+  Aponte a câmera do celular para acessar o portal
+</p>
+
 ## Telas
 
 Prints com dados fictícios.
